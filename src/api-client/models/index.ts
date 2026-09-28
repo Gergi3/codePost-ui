@@ -6035,6 +6035,7 @@ export enum LanguageEnum {
   R4 = 'r-4',
   Ruby = 'ruby',
   Php = 'php',
+  Other = 'other',
 }
 
 /**
