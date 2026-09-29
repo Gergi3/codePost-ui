@@ -1,6 +1,6 @@
 # CourseAPIKeyScopeEnum
 
-- `read` - Read only * `write` - Read and write (no deletes, no student email) * `admin` - Full course admin (deletes, resets, student email)
+- `read` - Read only * `write` - Read and write (no deletes, no emailing students) * `admin` - Full course admin (deletes, resets, emailing students)
 
 ## Properties
 

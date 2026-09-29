@@ -252,8 +252,9 @@ const CourseAPIKeysCard: React.FC<ICourseAPIKeysCardProps> = ({ courseId }) => {
           </Text>{' '}
           A <Tag style={{ fontSize: 11 }}>read</Tag> key can only look things up; <Tag style={{ fontSize: 11 }}>write</Tag>{' '}
           adds course setup (assignments, quizzes, rubrics, autograder); <Tag style={{ fontSize: 11 }}>admin</Tag> also
-          allows deletes, attempt resets and student email &mdash; each of those still needs a confirmation code from the{' '}
-          <Text strong>Pending agent actions</Text> panel below.
+          allows deletes, attempt resets and emailing students &mdash; each of those still needs a confirmation code from
+          the <Text strong>Pending agent actions</Text> panel below. Whatever the level, the agent never sees student
+          email addresses: students appear as aliases you can resolve under <Text strong>Student aliases</Text> below.
         </Paragraph>
 
         {isLoading ? (
@@ -309,7 +310,7 @@ const CourseAPIKeysCard: React.FC<ICourseAPIKeysCardProps> = ({ courseId }) => {
               },
               {
                 value: 'write',
-                label: 'Read & write — manage assignments and settings; no deletes, no student email',
+                label: 'Read & write — manage assignments and settings; no deletes, no emailing students',
               },
               {
                 value: 'admin',
