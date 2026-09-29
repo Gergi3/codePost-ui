@@ -26,13 +26,17 @@ export interface IProps {
 enum BULK_ACTION {
   Finalize,
   Unfinalize,
+  Release,
 }
 
 interface SubmissionPayload {
   id: number;
-  isFinalized: boolean;
-  grader?: string;
+  isFinalized?: boolean;
+  grader?: string | null;
 }
+
+// Claimed but not finalized: the submissions a Release sends back to the Draw queue.
+const isReleasable = (sub: SubmissionInfoType) => !!sub.grader && !sub.isFinalized;
 
 const BulkSubmissionEdit: React.FC<IProps> = ({
   activeAssignment,
@@ -61,14 +65,22 @@ const BulkSubmissionEdit: React.FC<IProps> = ({
     [activeAssignment.id, myEmail, bulkUpdateSubmissions],
   );
 
+  const releaseClaimed = useCallback(async () => {
+    const getPayload = (sub: SubmissionInfoType): SubmissionPayload =>
+      isReleasable(sub) ? { id: sub.id, grader: null } : { id: sub.id };
+    return await bulkUpdateSubmissions(activeAssignment.id, getPayload);
+  }, [activeAssignment.id, bulkUpdateSubmissions]);
+
   const execute = useCallback(async () => {
     switch (action) {
       case BULK_ACTION.Finalize:
         return await editFinalized(true);
       case BULK_ACTION.Unfinalize:
         return await editFinalized(false);
+      case BULK_ACTION.Release:
+        return await releaseClaimed();
     }
-  }, [action, editFinalized]);
+  }, [action, editFinalized, releaseClaimed]);
 
   // ********************************** Helpers ****************************************
   const getNumAffected = useCallback(() => {
@@ -77,6 +89,8 @@ const BulkSubmissionEdit: React.FC<IProps> = ({
         return submissions.filter((s) => !s.isFinalized).length;
       case BULK_ACTION.Unfinalize:
         return submissions.filter((s) => s.isFinalized).length;
+      case BULK_ACTION.Release:
+        return submissions.filter(isReleasable).length;
     }
   }, [action, submissions]);
 
@@ -116,6 +130,7 @@ const BulkSubmissionEdit: React.FC<IProps> = ({
 
   const numFinalized = submissions.filter((s) => s.isFinalized).length;
   const numUnfinalized = submissions.length - numFinalized;
+  const numReleasable = submissions.filter(isReleasable).length;
 
   const radioStyle = {
     height: '35px',
@@ -135,6 +150,12 @@ const BulkSubmissionEdit: React.FC<IProps> = ({
       label: `Unfinalize all submissions (impacts ${numFinalized} submission${numFinalized > 1 ? 's' : ''})`,
       value: BULK_ACTION.Unfinalize,
       disabled: numFinalized === 0,
+      style: radioStyle,
+    },
+    {
+      label: `Release claimed submissions back to the queue (impacts ${numReleasable} submission${numReleasable > 1 ? 's' : ''})`,
+      value: BULK_ACTION.Release,
+      disabled: numReleasable === 0,
       style: radioStyle,
     },
   ];
@@ -161,6 +182,12 @@ const BulkSubmissionEdit: React.FC<IProps> = ({
       <div>
         <div style={{ fontSize: 16, marginBottom: 10, marginTop: 30 }}>Choose an action to perform: </div>
         <Radio.Group style={{ paddingLeft: 20 }} onChange={onChange} value={action} options={options}></Radio.Group>
+        {action === BULK_ACTION.Release && (
+          <div style={{ marginTop: 10, color: 'rgba(0, 0, 0, 0.45)' }}>
+            Unassigns the grader from every claimed, unfinalized submission so graders can Draw them again. Finalized
+            submissions are not affected.
+          </div>
+        )}
       </div>
     </Modal>
   );
