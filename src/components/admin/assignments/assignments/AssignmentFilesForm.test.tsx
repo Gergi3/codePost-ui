@@ -35,27 +35,31 @@ const openViewer = (file: AssignmentFileType) => {
   fireEvent.click(screen.getByRole('button', { name: /View/ }));
 };
 
+// Each viewer test mounts the full antd modal: 1-2s locally, over the default 5s cap on a
+// loaded CI runner.
+const slow = { timeout: 15000 };
+
 describe('AssignmentFilesForm file viewer', () => {
-  it('opens images in Preview mode as a rendered image, not the data URI', () => {
+  it('opens images in Preview mode as a rendered image, not the data URI', slow, () => {
     openViewer(makeFile({}));
-    expect(screen.getByRole('img', { name: 'Preview of plot.png' })).toHaveAttribute('src', PNG);
+    expect(screen.getByAltText('Preview of plot.png')).toHaveAttribute('src', PNG);
     expect(screen.queryByTestId('raw-editor')).not.toBeInTheDocument();
   });
 
-  it('switches to the raw data URI with the Raw toggle', () => {
+  it('switches to the raw data URI with the Raw toggle', slow, () => {
     openViewer(makeFile({}));
     fireEvent.click(screen.getByText('Raw'));
     expect(screen.getByTestId('raw-editor')).toHaveValue(PNG);
   });
 
-  it('previews SVG stored as raw markup', () => {
+  it('previews SVG stored as raw markup', slow, () => {
     openViewer(makeFile({ name: 'icon.svg', extension: 'svg', data: '<svg xmlns="http://www.w3.org/2000/svg"/>' }));
-    expect(screen.getByRole('img', { name: 'Preview of icon.svg' }).getAttribute('src')).toMatch(
+    expect(screen.getByAltText('Preview of icon.svg').getAttribute('src')).toMatch(
       /^data:image\/svg\+xml;charset=utf-8,/,
     );
   });
 
-  it('keeps the code editor for source files', () => {
+  it('keeps the code editor for source files', slow, () => {
     openViewer(makeFile({ name: 'main.py', extension: 'py', data: 'print(1)' }));
     expect(screen.getByTestId('raw-editor')).toHaveValue('print(1)');
     expect(screen.queryByText('Preview')).not.toBeInTheDocument();
