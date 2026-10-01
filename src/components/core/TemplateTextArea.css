@@ -8,15 +8,20 @@
   margin-bottom: 4px;
 }
 
+/* Width is set inline on the Select (see TemplateTextArea.tsx) — antd's Form.Item rule
+   outranks a class here. */
 .cp-tta-insert {
-  min-width: 170px;
+  flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .cp-tta-header-right {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 /* The editor surface: the highlight overlay paints behind the (transparent-background)
