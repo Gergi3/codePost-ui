@@ -67,10 +67,10 @@ const QuizzesManager: React.FC<IProps> = ({ course }) => {
       </Typography.Paragraph>
 
       <Tabs
-        defaultActiveKey="banks"
+        defaultActiveKey="quizzes"
         items={[
-          { key: 'banks', label: 'Question Banks', children: banksTab },
           { key: 'quizzes', label: 'Quizzes', children: quizzesTab },
+          { key: 'banks', label: 'Question Banks', children: banksTab },
         ]}
       />
     </div>

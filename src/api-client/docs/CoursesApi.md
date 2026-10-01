@@ -5,6 +5,7 @@ All URIs are relative to *http://localhost*
 | Method                                                                                   | HTTP request                                                   | Description |
 | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------- |
 | [**addToRosterPartialUpdate**](CoursesApi.md#addtorosterpartialupdate)                   | **PATCH** /courses/{id}/addToRoster/                           |             |
+| [**agentAliasesRetrieve**](CoursesApi.md#agentaliasesretrieve)                           | **GET** /courses/{id}/agentAliases/                            |             |
 | [**aiModelsRetrieve**](CoursesApi.md#aimodelsretrieve)                                   | **GET** /courses/{id}/aiModels/                                |             |
 | [**aiSettingsPartialUpdate**](CoursesApi.md#aisettingspartialupdate)                     | **PATCH** /courses/{id}/aiSettings/                            |             |
 | [**aiSettingsRetrieve**](CoursesApi.md#aisettingsretrieve)                               | **GET** /courses/{id}/aiSettings/                              |             |
@@ -115,6 +116,80 @@ example().catch(console.error);
 ### HTTP request headers
 
 - **Content-Type**: `application/json`, `application/x-www-form-urlencoded`, `multipart/form-data`
+- **Accept**: `application/json`
+
+### HTTP response details
+
+| Status code | Description | Response headers |
+| ----------- | ----------- | ---------------- |
+| **200**     |             | -                |
+
+[[Back to top]](#) [[Back to API list]](../README.md#api-endpoints) [[Back to Model list]](../README.md#models) [[Back to README]](../README.md)
+
+## agentAliasesRetrieve
+
+> AgentAliasLookupResponse agentAliasesRetrieve(id, q)
+
+Resolve the pseudonymous alias an MCP agent uses for a student back to the student (or the reverse). Course-scoped credentials are refused outright: the agent\&#39;s own key must never be able to de-anonymize its own output. Only a human course admin, signed in normally, may look aliases up.
+
+### Example
+
+```ts
+import { Configuration, CoursesApi } from '';
+import type { AgentAliasesRetrieveRequest } from '';
+
+async function example() {
+  console.log('🚀 Testing  SDK...');
+  const config = new Configuration({
+    // To configure HTTP basic authorization: basicAuth
+    username: 'YOUR USERNAME',
+    password: 'YOUR PASSWORD',
+    // To configure API key authorization: tokenAuth
+    apiKey: 'YOUR API KEY',
+    // To configure API key authorization: cookieAuth
+    apiKey: 'YOUR API KEY',
+    // To configure API key authorization: courseKeyAuth
+    apiKey: 'YOUR API KEY',
+  });
+  const api = new CoursesApi(config);
+
+  const body = {
+    // number | A unique integer value identifying this course.
+    id: 56,
+    // string | An agent alias (student-3f9a1c2d40), a student\'s email, or a bare NetID/username.
+    q: q_example,
+  } satisfies AgentAliasesRetrieveRequest;
+
+  try {
+    const data = await api.agentAliasesRetrieve(body);
+    console.log(data);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Run the test
+example().catch(console.error);
+```
+
+### Parameters
+
+| Name   | Type     | Description                                                                            | Notes                     |
+| ------ | -------- | -------------------------------------------------------------------------------------- | ------------------------- |
+| **id** | `number` | A unique integer value identifying this course.                                        | [Defaults to `undefined`] |
+| **q**  | `string` | An agent alias (student-3f9a1c2d40), a student\&#39;s email, or a bare NetID/username. | [Defaults to `undefined`] |
+
+### Return type
+
+[**AgentAliasLookupResponse**](AgentAliasLookupResponse.md)
+
+### Authorization
+
+[basicAuth](../README.md#basicAuth), [tokenAuth](../README.md#tokenAuth), [cookieAuth](../README.md#cookieAuth), [courseKeyAuth](../README.md#courseKeyAuth)
+
+### HTTP request headers
+
+- **Content-Type**: Not defined
 - **Accept**: `application/json`
 
 ### HTTP response details

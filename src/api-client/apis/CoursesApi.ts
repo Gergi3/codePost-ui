@@ -19,6 +19,7 @@ import type {
   AIProviderTestRequest,
   AIProviderTestResult,
   AIUsageSummary,
+  AgentAliasLookupResponse,
   Assignment,
   CapabilitiesResponse,
   Course,
@@ -52,6 +53,11 @@ export interface AddToRosterPartialUpdateRequest {
     PatchedCourse,
     'id' | 'assignments' | 'sections' | 'inviteCode' | 'webhooks' | 'studentCount' | 'isRubricEditor' | 'capabilities'
   >;
+}
+
+export interface AgentAliasesRetrieveRequest {
+  id: number;
+  q: string;
 }
 
 export interface AiModelsRetrieveRequest {
@@ -360,6 +366,77 @@ export class CoursesApi extends runtime.BaseAPI {
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
   ): Promise<CourseRoster> {
     const response = await this.addToRosterPartialUpdateRaw(requestParameters, initOverrides);
+    return await response.value();
+  }
+
+  /**
+   * Resolve the pseudonymous alias an MCP agent uses for a student back to the student (or the reverse).  Course-scoped credentials are refused outright: the agent\'s own key must never be able to de-anonymize its own output. Only a human course admin, signed in normally, may look aliases up.
+   */
+  async agentAliasesRetrieveRaw(
+    requestParameters: AgentAliasesRetrieveRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<runtime.ApiResponse<AgentAliasLookupResponse>> {
+    if (requestParameters['id'] == null) {
+      throw new runtime.RequiredError(
+        'id',
+        'Required parameter "id" was null or undefined when calling agentAliasesRetrieve().',
+      );
+    }
+
+    if (requestParameters['q'] == null) {
+      throw new runtime.RequiredError(
+        'q',
+        'Required parameter "q" was null or undefined when calling agentAliasesRetrieve().',
+      );
+    }
+
+    const queryParameters: any = {};
+
+    if (requestParameters['q'] != null) {
+      queryParameters['q'] = requestParameters['q'];
+    }
+
+    const headerParameters: runtime.HTTPHeaders = {};
+
+    if (
+      this.configuration &&
+      (this.configuration.username !== undefined || this.configuration.password !== undefined)
+    ) {
+      headerParameters['Authorization'] =
+        'Basic ' + btoa(this.configuration.username + ':' + this.configuration.password);
+    }
+    if (this.configuration && this.configuration.apiKey) {
+      headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // tokenAuth authentication
+    }
+
+    if (this.configuration && this.configuration.apiKey) {
+      headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
+    }
+
+    let urlPath = `/courses/{id}/agentAliases/`;
+    urlPath = urlPath.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id'])));
+
+    const response = await this.request(
+      {
+        path: urlPath,
+        method: 'GET',
+        headers: headerParameters,
+        query: queryParameters,
+      },
+      initOverrides,
+    );
+
+    return new runtime.JSONApiResponse(response);
+  }
+
+  /**
+   * Resolve the pseudonymous alias an MCP agent uses for a student back to the student (or the reverse).  Course-scoped credentials are refused outright: the agent\'s own key must never be able to de-anonymize its own output. Only a human course admin, signed in normally, may look aliases up.
+   */
+  async agentAliasesRetrieve(
+    requestParameters: AgentAliasesRetrieveRequest,
+    initOverrides?: RequestInit | runtime.InitOverrideFunction,
+  ): Promise<AgentAliasLookupResponse> {
+    const response = await this.agentAliasesRetrieveRaw(requestParameters, initOverrides);
     return await response.value();
   }
 

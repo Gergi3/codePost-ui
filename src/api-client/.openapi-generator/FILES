@@ -66,6 +66,8 @@ docs/AIUsageBucket.md
 docs/AIUsageSummary.md
 docs/AcceptSuggestionRequest.md
 docs/ActivateCipResponse.md
+docs/AgentAliasLookupResponse.md
+docs/AgentAliasMatch.md
 docs/AggregationModeEnum.md
 docs/AiCoursePolicyEnum.md
 docs/AiFeaturesApi.md

@@ -20,6 +20,7 @@ import {
   Button,
   Checkbox,
   Empty,
+  Image,
   Input,
   Modal,
   Popconfirm,
@@ -38,6 +39,9 @@ import * as React from 'react';
 import { colors } from '../../../../theme/colors';
 import { AssignmentFileType, File as CodePostFile } from '../../../../utils/file';
 import NotebookEditor from './NotebookEditor'; // Added import
+
+// Lazy so the pdf-vendor chunk is only pulled when a PDF is opened.
+const PdfPreviewLazy = React.lazy(() => import('../../courseFiles/CourseFilePdfPreview'));
 
 const { Text } = Typography;
 
@@ -59,13 +63,61 @@ function getCodingLanguage(extension: string): string {
   return lang;
 }
 
+// Images and PDFs get a rendered Preview mode instead of opening their data URI in Monaco.
+function getPreviewType(file: AssignmentFileType | undefined): 'image' | 'pdf' | null {
+  if (!file) return null;
+  const type = CodePostFile.codeType(file);
+  return type === 'image' || type === 'pdf' ? type : null;
+}
+
+// Zip entries carry no MIME type, so binary ones are labelled from their extension.
+const BINARY_MIME_TYPES: Record<string, string> = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  bmp: 'image/bmp',
+  ico: 'image/x-icon',
+  pdf: 'application/pdf',
+};
+
+function mimeForFileName(name: string): string {
+  return BINARY_MIME_TYPES[CodePostFile.extension(name).toLowerCase()] || 'application/octet-stream';
+}
+
+// Known binary extensions always count as binary: readAsText silently mangles non-UTF-8
+// bytes, so a PDF/image without NUL bytes would otherwise be corrupted.
+function isBinaryContent(name: string, text: string): boolean {
+  return CodePostFile.extension(name).toLowerCase() in BINARY_MIME_TYPES || text.indexOf('\0') !== -1;
+}
+
+function readAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+// Binary files are stored as data URIs; an SVG may instead be stored as its raw markup.
+function toPreviewSrc(data: string, extension: string): string | null {
+  if (data.startsWith('data:')) return data;
+  if (extension.toLowerCase() === 'svg' && data.trim()) {
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(data)}`;
+  }
+  return null;
+}
+
 const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], onChange, assignmentId }) => {
   const [files, setFiles] = React.useState<EditableFile[]>(value);
   const [newFileName, setNewFileName] = React.useState('');
   const [newFilePath, setNewFilePath] = React.useState('');
   const [viewingCode, setViewingCode] = React.useState<{ file: EditableFile; visible: boolean } | null>(null);
   const [editingCode, setEditingCode] = React.useState<string>('');
-  const [viewMode, setViewMode] = React.useState<'json' | 'notebook'>('json');
+  const [viewMode, setViewMode] = React.useState<'json' | 'notebook' | 'preview'>('json');
+  const previewType = getPreviewType(viewingCode?.file);
 
   // Update internal state when external value changes
   React.useEffect(() => {
@@ -78,6 +130,8 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
       setEditingCode(viewingCode.file.data || '');
       if (CodePostFile.isNotebookFile(viewingCode.file)) {
         setViewMode('notebook');
+      } else if (getPreviewType(viewingCode.file)) {
+        setViewMode('preview');
       } else {
         setViewMode('json');
       }
@@ -93,31 +147,6 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
   const isStudentVisibleFile = (file: EditableFile): boolean => {
     const normalized = file as EditableFile & { is_test_resource?: boolean };
     return !(file.hidden || file.isTestResource || normalized.is_test_resource);
-  };
-
-  // Helper to check for binary content
-  const hasNullBytes = (str: string): boolean => {
-    return str.indexOf('\0') !== -1;
-  };
-
-  // Helper for binary file error message
-  const showBinaryFileError = (fileName: string) => {
-    Modal.error({
-      title: 'Unsupported File Type',
-      content: (
-        <div>
-          <p>
-            <b>{fileName}</b> appears to be a binary file (e.g., image, PDF, executable).
-          </p>
-          <p>
-            "Assignment Files" are strictly for text-based source code.
-            <br />
-            To provide binary files to students, please upload them to <b>Assignment Datasets</b> in the Resources tab
-            instead.
-          </p>
-        </div>
-      ),
-    });
   };
 
   // Add a new file
@@ -164,13 +193,15 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
   const handleUploadCode = (id: number, file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const content = e.target?.result as string;
-      if (hasNullBytes(content)) {
-        showBinaryFileError(file.name);
-        return;
-      }
-      updateFiles(files.map((f) => (f.id === id ? { ...f, data: content } : f)));
-      message.success(`Uploaded code for ${file.name}`);
+      const text = e.target?.result as string;
+      // Binary files (images, PDFs, ...) are stored as data URIs, decoded on download/execution.
+      const load = isBinaryContent(file.name, text) ? readAsDataUrl(file) : Promise.resolve(text);
+      load
+        .then((content) => {
+          updateFiles(files.map((f) => (f.id === id ? { ...f, data: content } : f)));
+          message.success(`Uploaded ${file.name}`);
+        })
+        .catch(() => message.error('Failed to read file'));
     };
     reader.onerror = () => {
       message.error('Failed to read file');
@@ -236,16 +267,10 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
           // Get extension
           const extension = CodePostFile.extension(fileName) || 'txt';
 
-          // Read file content
-          const content = await zipEntry.async('text');
-
-          if (hasNullBytes(content)) {
-            // Skip binary files in zip silently or with a toast?
-            // Ideally we warn, but preventing the whole zip might be annoying.
-            // Let's console warn and skip, or show a single warning at end.
-            // For now, let's just skip them to prevent errors.
-            console.warn(`Skipping binary file in zip: ${fileName}`);
-            continue;
+          // Read file content; binary files are stored as data URIs.
+          let content = await zipEntry.async('text');
+          if (isBinaryContent(fileName, content)) {
+            content = `data:${mimeForFileName(fileName)};base64,${await zipEntry.async('base64')}`;
           }
 
           // Generate ID
@@ -288,12 +313,17 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
       const extension = CodePostFile.extension(file.name) || 'txt';
 
       const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
+      reader.onload = async (e) => {
+        let content = e.target?.result as string;
 
-        if (hasNullBytes(content)) {
-          showBinaryFileError(file.name);
-          return;
+        // Binary files (images, PDFs, ...) are stored as data URIs, decoded on download/execution.
+        if (isBinaryContent(file.name, content)) {
+          try {
+            content = await readAsDataUrl(file);
+          } catch {
+            message.error('Failed to read file');
+            return;
+          }
         }
 
         const newId = -1 * (files.length + Date.now());
@@ -312,7 +342,7 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
         };
 
         updateFiles([...files, newFile]);
-        message.success(`Added ${file.name} with code`);
+        message.success(`Added ${file.name}`);
       };
       reader.onerror = () => {
         message.error('Failed to read file');
@@ -631,6 +661,18 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
                 <Radio.Button value="json">Raw JSON</Radio.Button>
               </Radio.Group>
             )}
+
+            {previewType && (
+              <Radio.Group
+                value={viewMode}
+                onChange={(e) => setViewMode(e.target.value as 'json' | 'preview')}
+                buttonStyle="solid"
+                size="small"
+              >
+                <Radio.Button value="preview">Preview</Radio.Button>
+                <Radio.Button value="json">Raw</Radio.Button>
+              </Radio.Group>
+            )}
           </div>
         }
         open={viewingCode?.visible || false}
@@ -683,6 +725,69 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
 
           {CodePostFile.isNotebookFile(viewingCode?.file) && viewMode === 'notebook' ? (
             <NotebookEditor content={editingCode} onChange={setEditingCode} />
+          ) : previewType && viewMode === 'preview' ? (
+            <>
+              <div
+                style={{
+                  height: 500,
+                  overflow: 'auto',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: previewType === 'image' ? 'center' : 'flex-start',
+                  border: `1px solid ${colors.neutralBorder}`,
+                  borderRadius: 6,
+                  padding: 12,
+                }}
+              >
+                {(() => {
+                  const src = toPreviewSrc(editingCode, viewingCode?.file.extension || '');
+                  if (!src) {
+                    return (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="No previewable content. Use Replace File to upload one."
+                      />
+                    );
+                  }
+                  if (previewType === 'image') {
+                    return (
+                      <Image
+                        src={src}
+                        alt={`Preview of ${viewingCode?.file.name}`}
+                        style={{ maxHeight: 470, maxWidth: '100%', objectFit: 'contain' }}
+                      />
+                    );
+                  }
+                  return (
+                    <React.Suspense fallback={<Text type="secondary">Loading PDF…</Text>}>
+                      <PdfPreviewLazy dataUri={src} width={780} />
+                    </React.Suspense>
+                  );
+                })()}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Upload
+                  accept={previewType === 'pdf' ? '.pdf,application/pdf' : 'image/*'}
+                  showUploadList={false}
+                  beforeUpload={(file) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                      setEditingCode(e.target?.result as string);
+                      message.success(`Loaded ${file.name}`);
+                    };
+                    reader.onerror = () => {
+                      message.error('Failed to read file');
+                    };
+                    reader.readAsDataURL(file);
+                    return false;
+                  }}
+                >
+                  <Button size="small" icon={<UploadOutlined />}>
+                    Replace File
+                  </Button>
+                </Upload>
+              </div>
+            </>
           ) : (
             <>
               <Editor
@@ -721,10 +826,13 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
                     showUploadList={false}
                     beforeUpload={(file) => {
                       const reader = new FileReader();
-                      reader.onload = (e) => {
-                        const content = e.target?.result as string;
+                      reader.onload = async (e) => {
+                        let content = e.target?.result as string;
+                        if (isBinaryContent(file.name, content)) {
+                          content = await readAsDataUrl(file);
+                        }
                         setEditingCode(content);
-                        message.success(`Loaded code from ${file.name}`);
+                        message.success(`Loaded ${file.name}`);
                       };
                       reader.readAsText(file);
                       return false;

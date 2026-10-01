@@ -232,6 +232,7 @@ const TemplateTextArea: React.FC<IProps> = ({
               placeholder="Insert variable"
               aria-label="Insert variable"
               className="cp-tta-insert"
+              style={{ width: 240 }}
               popupMatchSelectWidth={360}
               options={insertOptions}
               filterOption={(input, option) =>
@@ -296,7 +297,9 @@ const TemplateTextArea: React.FC<IProps> = ({
             autoSize={{ minRows, maxRows: Math.max(growTo, minRows) }}
             disabled={disabled}
             filterOption={(input, option) =>
-              String(option?.value ?? '').toLowerCase().includes(input.toLowerCase())
+              String(option?.value ?? '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
             }
           />
         </div>
