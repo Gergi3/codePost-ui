@@ -52,6 +52,7 @@ export interface PartialUpdateRequest {
   description?: string;
   mountPath?: string;
   isActive?: boolean;
+  hidden?: boolean;
   isTestResource?: boolean;
   isStudentVariant?: boolean;
   autogradeAllVariants?: boolean;
@@ -72,6 +73,7 @@ export interface UpdateRequest {
   description?: string;
   mountPath?: string;
   isActive?: boolean;
+  hidden?: boolean;
   isTestResource?: boolean;
   isStudentVariant?: boolean;
   autogradeAllVariants?: boolean;
@@ -497,6 +499,10 @@ export class AssignmentDataSetsApi extends runtime.BaseAPI {
       formParams.append('isActive', requestParameters['isActive'] as any);
     }
 
+    if (requestParameters['hidden'] != null) {
+      formParams.append('hidden', requestParameters['hidden'] as any);
+    }
+
     if (requestParameters['isTestResource'] != null) {
       formParams.append('isTestResource', requestParameters['isTestResource'] as any);
     }
@@ -721,6 +727,10 @@ export class AssignmentDataSetsApi extends runtime.BaseAPI {
 
     if (requestParameters['isActive'] != null) {
       formParams.append('isActive', requestParameters['isActive'] as any);
+    }
+
+    if (requestParameters['hidden'] != null) {
+      formParams.append('hidden', requestParameters['hidden'] as any);
     }
 
     if (requestParameters['isTestResource'] != null) {

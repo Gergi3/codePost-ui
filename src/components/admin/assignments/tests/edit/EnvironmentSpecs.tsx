@@ -869,7 +869,11 @@ export const EnvironmentSpecs = (props: IProps) => {
 
       {/* Environment Shell */}
       {props.env ? (
-        <EnvironmentShellWidget environmentId={props.env.id} hasAssignmentFiles={hasAssignmentFiles} />
+        <EnvironmentShellWidget
+          environmentId={props.env.id}
+          hasAssignmentFiles={hasAssignmentFiles}
+          assignmentId={props.currentAssignment?.id}
+        />
       ) : null}
 
       {/* Modals */}

@@ -1656,6 +1656,12 @@ export interface AssignmentDataSetUpdate {
    */
   isActive?: boolean;
   /**
+   * If True, this dataset will be hidden from students.
+   * @type {boolean}
+   * @memberof AssignmentDataSetUpdate
+   */
+  hidden?: boolean;
+  /**
    *
    * @type {boolean}
    * @memberof AssignmentDataSetUpdate
@@ -7398,6 +7404,12 @@ export interface PatchedAssignmentDataSetUpdate {
    * @memberof PatchedAssignmentDataSetUpdate
    */
   isActive?: boolean;
+  /**
+   * If True, this dataset will be hidden from students.
+   * @type {boolean}
+   * @memberof PatchedAssignmentDataSetUpdate
+   */
+  hidden?: boolean;
   /**
    *
    * @type {boolean}

@@ -10,6 +10,7 @@ Serializer for updating AssignmentDataSet (without file upload)
 | `description`          | string  |
 | `mountPath`            | string  |
 | `isActive`             | boolean |
+| `hidden`               | boolean |
 | `isTestResource`       | boolean |
 | `isStudentVariant`     | boolean |
 | `autogradeAllVariants` | boolean |

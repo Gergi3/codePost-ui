@@ -1,8 +1,12 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
+
+import { createApiClientsMock } from '../../../../../test-utils/mocks';
 
 const { write } = vi.hoisted(() => ({ write: vi.fn() }));
+
+vi.mock('../../../../../api-client/clients', () => createApiClientsMock());
 
 vi.mock('@xterm/xterm', () => ({
   Terminal: class {
@@ -23,6 +27,7 @@ vi.mock('@xterm/addon-fit', () => ({
 }));
 vi.mock('@xterm/xterm/css/xterm.css', () => ({}));
 
+import { assignmentsApi } from '../../../../../api-client/clients';
 import { EnvironmentShellWidget } from '../EnvironmentShellWidget';
 
 /** Minimal WebSocket stand-in: captures the last instance so tests can fire its handlers. */
@@ -81,5 +86,63 @@ describe('EnvironmentShellWidget connection messages', () => {
     const ws = await startShell();
     act(() => ws.onclose?.({ code: 1000 }));
     expect(write).toHaveBeenCalledWith('\r\nShell session closed (code 1000)\r\n');
+  });
+
+  it('sends no dataset selection when the widget has no assignment to load datasets from', async () => {
+    const ws = await startShell();
+    const params = new URL(ws.url).searchParams;
+    expect(params.get('includeDatasets')).toBe('true');
+    expect(params.has('datasetIds')).toBe(false);
+  });
+});
+
+describe('EnvironmentShellWidget dataset picker', () => {
+  const ds = (id: number, overrides: Record<string, unknown> = {}) => ({
+    id,
+    name: `d${id}.csv`,
+    mountPath: `shared/d${id}.csv`,
+    isActive: true,
+    isStudentVariant: false,
+    isTestResource: false,
+    ...overrides,
+  });
+
+  const startWithDatasets = async (list: unknown[]) => {
+    vi.mocked(assignmentsApi.datasetsList).mockResolvedValue(list as never);
+    render(<EnvironmentShellWidget environmentId={5} hasAssignmentFiles assignmentId={7} />);
+    await screen.findByText('Datasets to mount');
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Start' }));
+    });
+    return new URL(FakeWebSocket.last.url).searchParams;
+  };
+
+  beforeEach(() => {
+    vi.mocked(localStorage.getItem).mockReturnValue('token');
+    vi.stubEnv('REACT_APP_API_URL', 'http://api.test');
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('defaults to the shared datasets and sends their ids', async () => {
+    const params = await startWithDatasets([
+      ds(1),
+      ds(2, { isStudentVariant: true }),
+      ds(3, { isTestResource: true }),
+      ds(4, { isActive: false }),
+    ]);
+    await waitFor(() => expect(assignmentsApi.datasetsList).toHaveBeenCalledWith({ id: 7 }));
+    expect(params.get('datasetIds')).toBe('1');
+    expect(params.get('includeDatasets')).toBe('true');
+  });
+
+  it('sends an explicit empty selection when nothing is shared by default', async () => {
+    const params = await startWithDatasets([ds(2, { isStudentVariant: true }), ds(3, { isStudentVariant: true })]);
+    expect(params.get('datasetIds')).toBe('');
+    expect(params.get('includeDatasets')).toBe('false');
   });
 });

@@ -94,3 +94,75 @@ describe('AssignmentFilesForm uploads', () => {
     expect(added.data).toBe('print(1)\n');
   });
 });
+
+describe('AssignmentFilesForm drop zone', () => {
+  const dropAll = (files: File[], existing: AssignmentFileType[] = []) => {
+    const onChange = vi.fn();
+    const { container } = render(<AssignmentFilesForm value={existing} onChange={onChange} />);
+    // The drop zone's input, not a table row's Replace input.
+    const input = container.querySelector('.ant-upload-drag input[type="file"]') as HTMLInputElement;
+    fireEvent.change(input, { target: { files } });
+    return onChange;
+  };
+
+  it('adds every file from a multi-file drop, none lost to a stale state', slow, async () => {
+    const onChange = dropAll([
+      new File(['a'], 'a.py', { type: 'text/x-python' }),
+      new File(['b'], 'b.py', { type: 'text/x-python' }),
+      new File(['c'], 'c.py', { type: 'text/x-python' }),
+    ]);
+    await waitFor(() => expect(onChange).toHaveBeenCalledTimes(3));
+    const last = onChange.mock.calls[2][0] as AssignmentFileType[];
+    expect(last.map((f) => f.name)).toEqual(['a.py', 'b.py', 'c.py']);
+  });
+
+  it('expands a zip into its folder structure', slow, async () => {
+    const JSZip = (await import('jszip')).default;
+    const zip = new JSZip();
+    zip.file('src/main.py', 'print(1)');
+    zip.file('README.md', '# hi');
+    zip.file('__MACOSX/._junk', 'x');
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const onChange = dropAll([new File([blob], 'project.zip', { type: 'application/zip' })]);
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    const added = onChange.mock.calls[0][0] as AssignmentFileType[];
+    expect(added.map((f) => `${f.path ? f.path + '/' : ''}${f.name}`).sort()).toEqual(['README.md', 'src/main.py']);
+    expect(added.find((f) => f.name === 'main.py')?.data).toBe('print(1)');
+  });
+
+  it('skips a plain file whose name already exists', slow, async () => {
+    const existing = makeFile({ id: 1, name: 'main.py', extension: 'py', data: 'old' });
+    const onChange = dropAll([new File(['new'], 'main.py', { type: 'text/x-python' })], [existing]);
+    // Give the async reader a tick; nothing should have been appended.
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe('AssignmentFilesForm rename', () => {
+  it('renames through the modal and refuses a duplicate name', slow, async () => {
+    const onChange = vi.fn();
+    render(
+      <AssignmentFilesForm
+        value={[
+          makeFile({ id: 1, name: 'a.py', extension: 'py', data: 'a' }),
+          makeFile({ id: 2, name: 'b.py', extension: 'py', data: 'b' }),
+        ]}
+        onChange={onChange}
+      />,
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: /Rename/ })[0]);
+    const nameInput = await screen.findByLabelText('File name');
+    fireEvent.change(nameInput, { target: { value: 'b.py' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('A file with this name already exists')).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+
+    fireEvent.change(nameInput, { target: { value: 'c.py' } });
+    fireEvent.change(screen.getByLabelText('Directory'), { target: { value: 'src' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(onChange).toHaveBeenCalled());
+    const updated = onChange.mock.calls[0][0] as AssignmentFileType[];
+    expect(updated[0]).toMatchObject({ id: 1, name: 'c.py', path: 'src', extension: 'py' });
+  });
+});
