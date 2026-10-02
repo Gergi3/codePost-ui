@@ -1,19 +1,28 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
 import * as React from 'react';
-import { Alert, Button, Card, Checkbox, Space, Tag, Typography, message } from 'antd';
+import { Alert, Button, Card, Checkbox, Select, Space, Tag, Typography, message } from 'antd';
 import { PoweroffOutlined } from '@ant-design/icons';
 import { Terminal } from '@xterm/xterm';
 import type { IDisposable } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
+import { assignmentsApi } from '../../../../api-client/clients';
 import { ShellStartResponse } from '../../../../services/environmentShell';
+import type { AssignmentDataSetType } from '../../../../types/models';
 import { getAuthToken } from '../../../../utils/auth';
+import { containerPath, displayMountPath } from './AssignmentDataSetsForm';
 
 interface IProps {
   environmentId?: number | null;
   hasAssignmentFiles: boolean;
+  /** Lets the instructor pick which of the assignment's datasets to mount in the session. */
+  assignmentId?: number | null;
 }
+
+/** What a normal (non-shell) run mounts: active shared datasets — no variants, no test fixtures. */
+const isSharedDefault = (d: AssignmentDataSetType) =>
+  d.isActive !== false && !d.isStudentVariant && !d.isTestResource;
 
 const terminalStyles: React.CSSProperties = {
   background: '#0b0f13',
@@ -29,7 +38,7 @@ const getErrorMessage = (err: unknown, fallback: string) => {
   return fallback;
 };
 
-export const EnvironmentShellWidget: React.FC<IProps> = ({ environmentId, hasAssignmentFiles }) => {
+export const EnvironmentShellWidget: React.FC<IProps> = ({ environmentId, hasAssignmentFiles, assignmentId }) => {
   const [session, setSession] = React.useState<ShellStartResponse | null>(null);
   const [socket, setSocket] = React.useState<WebSocket | null>(null);
   const socketRef = React.useRef<WebSocket | null>(null);
@@ -39,11 +48,51 @@ export const EnvironmentShellWidget: React.FC<IProps> = ({ environmentId, hasAss
   const fitAddonRef = React.useRef<FitAddon | null>(null);
   const [starting, setStarting] = React.useState(false);
   const [stopping, setStopping] = React.useState(false);
-  const [includeDatasets, setIncludeDatasets] = React.useState(true);
   const [includeAssignmentFiles, setIncludeAssignmentFiles] = React.useState(true);
   const [runPreScript, setRunPreScript] = React.useState(false);
+  // null until the assignment's datasets load; then the picker drives what mounts.
+  const [datasets, setDatasets] = React.useState<AssignmentDataSetType[] | null>(null);
+  const [selectedDatasetIds, setSelectedDatasetIds] = React.useState<number[]>([]);
+
+  React.useEffect(() => {
+    if (!assignmentId) return;
+    let cancelled = false;
+    assignmentsApi
+      .datasetsList({ id: assignmentId })
+      .then((list) => {
+        if (cancelled) return;
+        setDatasets(list);
+        setSelectedDatasetIds(list.filter(isSharedDefault).map((d) => d.id));
+      })
+      .catch(() => {
+        // Leave `datasets` null: the session falls back to the server-side default (shared set).
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assignmentId]);
 
   const canUseShell = Boolean(environmentId) && (!includeAssignmentFiles || hasAssignmentFiles);
+
+  const mountableDatasets = (datasets ?? []).filter((d) => d.isActive !== false);
+  const datasetOption = (d: AssignmentDataSetType) => ({
+    value: d.id,
+    label: `${d.name}  →  ${displayMountPath(d.mountPath, d.name)}`,
+  });
+  const datasetOptionGroups = [
+    { label: 'Shared', options: mountableDatasets.filter(isSharedDefault).map(datasetOption) },
+    { label: 'Per-student variants', options: mountableDatasets.filter((d) => d.isStudentVariant).map(datasetOption) },
+    { label: 'Test resources', options: mountableDatasets.filter((d) => d.isTestResource).map(datasetOption) },
+  ].filter((g) => g.options.length > 0);
+
+  const selectedDatasets = mountableDatasets.filter((d) => selectedDatasetIds.includes(d.id));
+  const collidingPaths = Array.from(
+    new Set(
+      selectedDatasets
+        .map((d) => containerPath(d.mountPath, d.name))
+        .filter((path, i, all) => all.indexOf(path) !== i),
+    ),
+  );
 
   const writeTerminal = (text: string) => {
     terminalInstanceRef.current?.write(text);
@@ -119,12 +168,17 @@ export const EnvironmentShellWidget: React.FC<IProps> = ({ environmentId, hasAss
 
       const baseUrl = process.env.REACT_APP_API_URL!;
       const wsBase = baseUrl.replace(/^http/i, 'ws');
+      // Until the dataset list has loaded, send no selection: the server mounts its default.
+      const includeDatasets = datasets === null ? true : selectedDatasetIds.length > 0;
       const qs = new URLSearchParams({
         token,
         includeDatasets: includeDatasets ? 'true' : 'false',
         includeAssignmentFiles: includeAssignmentFiles ? 'true' : 'false',
         runPreScript: runPreScript ? 'true' : 'false',
       });
+      if (datasets !== null) {
+        qs.set('datasetIds', selectedDatasetIds.join(','));
+      }
       const wsUrl = `${wsBase}/ws/autograder/environments/${environmentId}/shell/?${qs.toString()}`;
 
       const ws = new WebSocket(wsUrl);
@@ -300,13 +354,6 @@ export const EnvironmentShellWidget: React.FC<IProps> = ({ environmentId, hasAss
           <Space align="center">
             <Tag color={socket ? 'green' : 'default'}>{socket ? 'Active' : 'Idle'}</Tag>
             <Checkbox
-              checked={includeDatasets}
-              onChange={(e) => setIncludeDatasets(e.target.checked)}
-              disabled={!!socket}
-            >
-              Include datasets
-            </Checkbox>
-            <Checkbox
               checked={includeAssignmentFiles}
               onChange={(e) => setIncludeAssignmentFiles(e.target.checked)}
               disabled={!!socket}
@@ -318,6 +365,37 @@ export const EnvironmentShellWidget: React.FC<IProps> = ({ environmentId, hasAss
             </Checkbox>
             <Typography.Text type="secondary">Short-lived sandbox for verifying mounts</Typography.Text>
           </Space>
+
+          {datasets !== null && (
+            <div>
+              <Typography.Text id="shell-datasets-label" style={{ display: 'block', marginBottom: 4 }}>
+                Datasets to mount
+              </Typography.Text>
+              <Select
+                mode="multiple"
+                aria-labelledby="shell-datasets-label"
+                style={{ width: '100%' }}
+                placeholder={mountableDatasets.length ? 'None — start with no datasets mounted' : 'No datasets on this assignment'}
+                options={datasetOptionGroups}
+                value={selectedDatasetIds}
+                onChange={(ids: number[]) => setSelectedDatasetIds(ids)}
+                disabled={!!socket || mountableDatasets.length === 0}
+                optionFilterProp="label"
+              />
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                Defaults to what a normal run mounts (shared datasets). Add a per-student variant or a test resource to
+                inspect it at its path.
+              </Typography.Text>
+              {collidingPaths.length > 0 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginTop: 8 }}
+                  title={`These selections mount at the same path — pick one per path: ${collidingPaths.join(', ')}`}
+                />
+              )}
+            </div>
+          )}
 
           <div
             style={terminalStyles}

@@ -1,6 +1,6 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
 /**********************************************************************************************************************/
-/* AssignmentFilesForm - Improved form component for managing assignment files
+/* AssignmentFilesForm - starter files students download, complete and submit back
 /**********************************************************************************************************************/
 
 import {
@@ -8,10 +8,10 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  FileAddOutlined,
   FileOutlined,
-  FolderOutlined,
+  InboxOutlined,
   InfoCircleOutlined,
-  PlusOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
 import Editor from '../../../../lib/monaco';
@@ -20,6 +20,7 @@ import {
   Button,
   Checkbox,
   Empty,
+  Form,
   Image,
   Input,
   Modal,
@@ -31,14 +32,14 @@ import {
   Typography,
   Upload,
   message,
-  Radio, // Added Radio
+  Radio,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import JSZip from 'jszip';
 import * as React from 'react';
 import { colors } from '../../../../theme/colors';
 import { AssignmentFileType, File as CodePostFile } from '../../../../utils/file';
-import NotebookEditor from './NotebookEditor'; // Added import
+import NotebookEditor from './NotebookEditor';
 
 // Lazy so the pdf-vendor chunk is only pulled when a PDF is opened.
 const PdfPreviewLazy = React.lazy(() => import('../../courseFiles/CourseFilePdfPreview'));
@@ -101,6 +102,22 @@ function readAsDataUrl(file: Blob): Promise<string> {
   });
 }
 
+function readAsText(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+// Text files are stored as-is; binary files (images, PDFs, ...) as data URIs, decoded on
+// download/execution.
+async function readFileContent(file: File): Promise<string> {
+  const text = await readAsText(file);
+  return isBinaryContent(file.name, text) ? readAsDataUrl(file) : text;
+}
+
 // Binary files are stored as data URIs; an SVG may instead be stored as its raw markup.
 function toPreviewSrc(data: string, extension: string): string | null {
   if (data.startsWith('data:')) return data;
@@ -110,18 +127,24 @@ function toPreviewSrc(data: string, extension: string): string | null {
   return null;
 }
 
+const fullPathOf = (f: { path?: string | null; name: string }) => (f.path ? `${f.path}/${f.name}` : f.name);
+
 const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], onChange, assignmentId }) => {
   const [files, setFiles] = React.useState<EditableFile[]>(value);
-  const [newFileName, setNewFileName] = React.useState('');
-  const [newFilePath, setNewFilePath] = React.useState('');
+  // Latest files for async readers: several dropped files resolve out of order, and each
+  // append must build on what the previous one produced, not on a stale render.
+  const filesRef = React.useRef<EditableFile[]>(value);
   const [viewingCode, setViewingCode] = React.useState<{ file: EditableFile; visible: boolean } | null>(null);
   const [editingCode, setEditingCode] = React.useState<string>('');
   const [viewMode, setViewMode] = React.useState<'json' | 'notebook' | 'preview'>('json');
+  const [nameModal, setNameModal] = React.useState<{ editing: EditableFile | null } | null>(null);
+  const [nameForm] = Form.useForm<{ path?: string; name: string }>();
   const previewType = getPreviewType(viewingCode?.file);
 
   // Update internal state when external value changes
   React.useEffect(() => {
     setFiles(value);
+    filesRef.current = value;
   }, [value]);
 
   // Initialize editing code when modal opens
@@ -140,6 +163,7 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
 
   // Notify parent of changes
   const updateFiles = (updatedFiles: EditableFile[]) => {
+    filesRef.current = updatedFiles;
     setFiles(updatedFiles);
     onChange?.(updatedFiles);
   };
@@ -149,493 +173,297 @@ const AssignmentFilesForm: React.FC<AssignmentFilesFormProps> = ({ value = [], o
     return !(file.hidden || file.isTestResource || normalized.is_test_resource);
   };
 
-  // Add a new file
-  const handleAddFile = () => {
-    if (!newFileName.trim()) {
-      return;
-    }
+  const isDuplicateName = (name: string, excludeId?: number): boolean =>
+    filesRef.current.some((file) => file.name.toLowerCase() === name.toLowerCase() && file.id !== excludeId);
 
-    // Extract extension from filename
-    const extension = CodePostFile.extension(newFileName) || 'txt';
+  let nextTempId = 0;
+  const makeFile = (name: string, path: string, data: string): EditableFile => ({
+    // Temporary negative id until saved.
+    id: -1 * (Date.now() + filesRef.current.length + nextTempId++),
+    name,
+    extension: CodePostFile.extension(name) || 'txt',
+    path,
+    required: false,
+    assignment: assignmentId || filesRef.current[0]?.assignment || 0,
+    data,
+    created: new Date().toISOString(),
+    modified: new Date().toISOString(),
+    description: '',
+  });
 
-    // Generate a temporary negative ID for new files
-    const newId = -1 * (files.length + Date.now());
+  // ---- add / edit by name -----------------------------------------------------------------
 
-    const newFile: EditableFile = {
-      id: newId,
-      name: newFileName.trim(),
-      extension,
-      path: newFilePath.trim(),
-      required: false,
-      assignment: assignmentId || files[0]?.assignment || 0,
-      data: '',
-      created: new Date().toISOString(),
-      modified: new Date().toISOString(),
-      description: '',
-    };
-
-    updateFiles([...files, newFile]);
-    setNewFileName('');
-    setNewFilePath('');
+  const openNameModal = (editing: EditableFile | null) => {
+    nameForm.resetFields();
+    if (editing) nameForm.setFieldsValue({ path: editing.path || '', name: editing.name });
+    setNameModal({ editing });
   };
 
-  // Delete a file
-  const handleDelete = (id: number) => {
-    updateFiles(files.filter((file) => file.id !== id));
-  };
-
-  // Toggle required status
-  const handleToggleRequired = (id: number) => {
-    updateFiles(files.map((file) => (file.id === id ? { ...file, required: !file.required } : file)));
-  };
-
-  // Upload code for a file
-  const handleUploadCode = (id: number, file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      // Binary files (images, PDFs, ...) are stored as data URIs, decoded on download/execution.
-      const load = isBinaryContent(file.name, text) ? readAsDataUrl(file) : Promise.resolve(text);
-      load
-        .then((content) => {
-          updateFiles(files.map((f) => (f.id === id ? { ...f, data: content } : f)));
-          message.success(`Uploaded ${file.name}`);
-        })
-        .catch(() => message.error('Failed to read file'));
-    };
-    reader.onerror = () => {
-      message.error('Failed to read file');
-    };
-    reader.readAsText(file);
-  };
-
-  // Start editing a file name/path
-  const handleEdit = (id: number) => {
-    const file = files.find((f) => f.id === id);
-    if (file) {
-      Modal.confirm({
-        title: 'Edit File Path',
-        content: (
-          <Space orientation="vertical" style={{ width: '100%' }}>
-            <div>
-              <Text>Directory (leave empty for root):</Text>
-              <Input id="edit-path-input" placeholder="e.g., src or /srv/share" defaultValue={file.path || ''} />
-            </div>
-            <div>
-              <Text>File name:</Text>
-              <Input id="edit-name-input" placeholder="e.g., main.py" defaultValue={file.name} />
-            </div>
-          </Space>
+  const handleNameSubmit = (values: { path?: string; name: string }) => {
+    const name = values.name.trim();
+    const path = (values.path || '').trim();
+    const editing = nameModal?.editing ?? null;
+    if (editing) {
+      updateFiles(
+        filesRef.current.map((f) =>
+          f.id === editing.id ? { ...f, name, path, extension: CodePostFile.extension(name) || 'txt' } : f,
         ),
-        onOk: () => {
-          const pathInput = document.getElementById('edit-path-input') as HTMLInputElement;
-          const nameInput = document.getElementById('edit-name-input') as HTMLInputElement;
-          const newPath = pathInput?.value.trim() || '';
-          const newName = nameInput?.value.trim();
+      );
+    } else {
+      updateFiles([...filesRef.current, makeFile(name, path, '')]);
+    }
+    setNameModal(null);
+  };
 
-          if (newName) {
-            const extension = CodePostFile.extension(newName) || 'txt';
-            updateFiles(files.map((f) => (f.id === id ? { ...f, name: newName, path: newPath, extension } : f)));
-          }
-        },
-      });
+  // ---- row actions ------------------------------------------------------------------------
+
+  const handleDelete = (id: number) => updateFiles(filesRef.current.filter((file) => file.id !== id));
+
+  const handleToggleRequired = (id: number) =>
+    updateFiles(filesRef.current.map((file) => (file.id === id ? { ...file, required: !file.required } : file)));
+
+  // Replace the content of an existing row with an uploaded file.
+  const handleUploadCode = async (id: number, file: File) => {
+    try {
+      const content = await readFileContent(file);
+      updateFiles(filesRef.current.map((f) => (f.id === id ? { ...f, data: content } : f)));
+      message.success(`Uploaded ${file.name}`);
+    } catch {
+      message.error('Failed to read file');
     }
   };
 
-  // Handle bulk upload (single file or zip)
-  const handleBulkUpload = async (file: File) => {
-    const isZip = file.name.endsWith('.zip');
+  // ---- drop zone: plain files are added one row each, a .zip is expanded into its tree ----
 
-    if (isZip) {
-      // Handle zip file
+  const filesFromZip = async (zipFile: File): Promise<EditableFile[]> => {
+    const zip = await JSZip.loadAsync(zipFile);
+    const out: EditableFile[] = [];
+    for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+      // Skip directories and hidden files
+      if (zipEntry.dir || relativePath.startsWith('__MACOSX') || relativePath.includes('/.')) continue;
+      const pathParts = relativePath.split('/');
+      const fileName = pathParts[pathParts.length - 1];
+      const directory = pathParts.slice(0, -1).join('/');
+      let content = await zipEntry.async('text');
+      if (isBinaryContent(fileName, content)) {
+        content = `data:${mimeForFileName(fileName)};base64,${await zipEntry.async('base64')}`;
+      }
+      out.push(makeFile(fileName, directory, content));
+    }
+    return out;
+  };
+
+  const handleIncomingFile = async (file: File) => {
+    if (file.name.toLowerCase().endsWith('.zip')) {
       try {
-        const zip = await JSZip.loadAsync(file);
-        const newFiles: EditableFile[] = [];
-        let processedCount = 0;
-
-        // Process each file in the zip
-        for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
-          // Skip directories and hidden files
-          if (zipEntry.dir || relativePath.startsWith('__MACOSX') || relativePath.includes('/.')) {
-            continue;
-          }
-
-          const pathParts = relativePath.split('/');
-          const fileName = pathParts[pathParts.length - 1];
-          const directory = pathParts.slice(0, -1).join('/');
-
-          // Get extension
-          const extension = CodePostFile.extension(fileName) || 'txt';
-
-          // Read file content; binary files are stored as data URIs.
-          let content = await zipEntry.async('text');
-          if (isBinaryContent(fileName, content)) {
-            content = `data:${mimeForFileName(fileName)};base64,${await zipEntry.async('base64')}`;
-          }
-
-          // Generate ID
-          const newId = -1 * (files.length + newFiles.length + Date.now() + processedCount);
-
-          newFiles.push({
-            id: newId,
-            name: fileName,
-            extension,
-            path: directory,
-            required: false,
-            assignment: assignmentId || files[0]?.assignment || 0,
-            data: content,
-            created: new Date().toISOString(),
-            modified: new Date().toISOString(),
-            description: '',
-          });
-
-          processedCount++;
+        const extracted = await filesFromZip(file);
+        if (extracted.length === 0) {
+          message.warning(`No files found in ${file.name}`);
+          return;
         }
-
-        if (newFiles.length > 0) {
-          updateFiles([...files, ...newFiles]);
-          message.success(`Extracted ${newFiles.length} files from ${file.name}`);
-        } else {
-          message.warning('No valid files found in zip');
-        }
+        updateFiles([...filesRef.current, ...extracted]);
+        message.success(`Added ${extracted.length} file${extracted.length === 1 ? '' : 's'} from ${file.name}`);
       } catch (error) {
         console.error('Error processing zip:', error);
-        message.error('Failed to process zip file');
+        message.error(`${file.name} is not a valid zip archive`);
       }
-    } else {
-      // check if file name already exists
-      if (isDuplicateName(file.name)) {
-        message.warning(`File with name ${file.name} already exists`);
-        return;
-      }
-
-      // Handle single file upload
-      const extension = CodePostFile.extension(file.name) || 'txt';
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        let content = e.target?.result as string;
-
-        // Binary files (images, PDFs, ...) are stored as data URIs, decoded on download/execution.
-        if (isBinaryContent(file.name, content)) {
-          try {
-            content = await readAsDataUrl(file);
-          } catch {
-            message.error('Failed to read file');
-            return;
-          }
-        }
-
-        const newId = -1 * (files.length + Date.now());
-
-        const newFile: EditableFile = {
-          id: newId,
-          name: file.name,
-          extension,
-          path: '',
-          required: false,
-          assignment: assignmentId || files[0]?.assignment || 0,
-          data: content,
-          created: new Date().toISOString(),
-          modified: new Date().toISOString(),
-          description: '',
-        };
-
-        updateFiles([...files, newFile]);
-        message.success(`Added ${file.name}`);
-      };
-      reader.onerror = () => {
-        message.error('Failed to read file');
-      };
-      reader.readAsText(file);
+      return;
     }
-
-    return false; // Prevent default upload behavior
+    if (isDuplicateName(file.name)) {
+      message.warning(`A file named ${file.name} already exists`);
+      return;
+    }
+    try {
+      const content = await readFileContent(file);
+      updateFiles([...filesRef.current, makeFile(file.name, '', content)]);
+      message.success(`Added ${file.name}`);
+    } catch {
+      message.error(`Failed to read ${file.name}`);
+    }
   };
 
-  // Check if a file name already exists
-  const isDuplicateName = (name: string, excludeId?: number): boolean => {
-    return files.some((file) => file.name.toLowerCase() === name.toLowerCase() && file.id !== excludeId);
+  // Dropped files arrive as separate beforeUpload calls; chain them so each append sees the
+  // previous one's result.
+  const incomingQueue = React.useRef<Promise<void>>(Promise.resolve());
+  const enqueueIncoming = (file: File) => {
+    incomingQueue.current = incomingQueue.current.then(() => handleIncomingFile(file));
+    return false; // never let antd upload anywhere
   };
+
+  // ---- table ------------------------------------------------------------------------------
+
+  const visibleFiles = files.filter(isStudentVisibleFile);
+  const requiredCount = visibleFiles.filter((f) => f.required).length;
 
   const columns: ColumnsType<EditableFile> = [
     {
-      title: <Text strong>File Path</Text>,
-      dataIndex: 'path',
-      key: 'path',
-      width: '35%',
-      render: (path: string, record: EditableFile) => {
-        const fullPath = path ? `${path}/${record.name}` : record.name;
-        return (
-          <Space size={8}>
-            {path && (
-              <Tooltip title={`Directory: ${path}`}>
-                <FolderOutlined style={{ color: '#faad14', fontSize: 16 }} />
-              </Tooltip>
-            )}
-            <FileOutlined style={{ color: colors.actionBlue, fontSize: 16 }} />
-            <Text strong style={{ fontSize: 13 }}>
-              {fullPath}
-            </Text>
-            <Tooltip title="Edit path/name">
-              <Button
-                type="text"
-                size="small"
-                icon={<EditOutlined />}
-                onClick={() => handleEdit(record.id)}
-                style={{ marginLeft: 4 }}
-              />
-            </Tooltip>
-          </Space>
-        );
-      },
-    },
-    {
-      title: <Text strong>Type</Text>,
-      dataIndex: 'extension',
-      key: 'extension',
-      width: '5%',
-      align: 'center',
-      render: (ext: string) => (
-        <Tag color="blue" style={{ fontSize: 12 }}>
-          {ext.replace('.', '')}
-        </Tag>
-      ),
-    },
-    {
-      title: <Text strong>File</Text>,
-      key: 'data',
-      width: '20%',
-      align: 'center',
+      title: 'File',
+      key: 'file',
       render: (_: unknown, record: EditableFile) => (
-        <Space size={6}>
-          <Upload
-            accept="*/*"
-            showUploadList={false}
-            beforeUpload={(file) => {
-              handleUploadCode(record.id, file);
-              return false;
-            }}
-          >
-            <Tooltip title={record.data ? 'Replace file' : 'Upload file'}>
-              <Button size="small" icon={<UploadOutlined />} type={record.data ? 'default' : 'primary'}>
-                {record.data ? 'Replace' : 'Upload'}
-              </Button>
-            </Tooltip>
-          </Upload>
-          {record.data && (
-            <Tooltip title="View and edit">
-              <Button
-                size="small"
-                icon={<EyeOutlined />}
-                onClick={() => setViewingCode({ file: record, visible: true })}
-              >
-                View
-              </Button>
+        <Space size={8}>
+          <FileOutlined style={{ color: colors.actionBlue }} />
+          <span style={{ fontWeight: 500 }}>{fullPathOf(record)}</span>
+          {!record.data && (
+            <Tooltip title="This file has no content yet. Students get an empty file unless you upload or write one.">
+              <Tag color="default" style={{ marginInlineStart: 4 }}>
+                Empty
+              </Tag>
             </Tooltip>
           )}
         </Space>
       ),
     },
     {
+      title: 'Type',
+      dataIndex: 'extension',
+      key: 'extension',
+      width: 90,
+      render: (ext: string) => <Tag color="blue">{ext.replace('.', '')}</Tag>,
+    },
+    {
       title: (
         <Space size={4}>
-          <Text strong>Required</Text>
-          <Tooltip title="Students must include these files when submitting their completed work">
+          Required
+          <Tooltip title="Students must include this file when they submit.">
             <InfoCircleOutlined style={{ color: '#8c8c8c', cursor: 'help' }} />
           </Tooltip>
         </Space>
       ),
       dataIndex: 'required',
       key: 'required',
-      width: '15%',
-      align: 'center',
+      width: 110,
       render: (_: unknown, record: EditableFile) => (
-        <Checkbox checked={record.required} onChange={() => handleToggleRequired(record.id)}></Checkbox>
+        <Checkbox
+          checked={record.required}
+          aria-label={`Required: ${fullPathOf(record)}`}
+          onChange={() => handleToggleRequired(record.id)}
+        />
       ),
     },
     {
-      title: <Text strong>Actions</Text>,
+      title: 'Actions',
       key: 'actions',
-      width: '10%',
-      align: 'center',
       render: (_: unknown, record: EditableFile) => (
-        <Popconfirm
-          title="Delete this file?"
-          description="This action cannot be undone."
-          onConfirm={() => handleDelete(record.id)}
-          okText="Delete"
-          cancelText="Cancel"
-          okButtonProps={{ danger: true }}
-          placement="topRight"
-        >
-          <Tooltip title="Delete file">
-            <Button type="text" danger icon={<DeleteOutlined />} size="small" />
-          </Tooltip>
-        </Popconfirm>
+        <Space size={0}>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => setViewingCode({ file: record, visible: true })}
+          >
+            View
+          </Button>
+          <Upload
+            accept="*/*"
+            showUploadList={false}
+            beforeUpload={(file) => {
+              void handleUploadCode(record.id, file);
+              return false;
+            }}
+          >
+            <Button type="link" size="small" icon={<UploadOutlined />}>
+              {record.data ? 'Replace' : 'Upload'}
+            </Button>
+          </Upload>
+          <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openNameModal(record)}>
+            Rename
+          </Button>
+          <Popconfirm
+            title="Delete this file?"
+            description="This action cannot be undone."
+            onConfirm={() => handleDelete(record.id)}
+            okText="Delete"
+            cancelText="Cancel"
+            okButtonProps={{ danger: true }}
+            placement="topRight"
+          >
+            <Button type="link" size="small" danger icon={<DeleteOutlined />}>
+              Delete
+            </Button>
+          </Popconfirm>
+        </Space>
       ),
     },
   ];
 
+  const dropZone = (
+    <Upload.Dragger multiple showUploadList={false} accept="*" beforeUpload={enqueueIncoming}>
+      <p className="ant-upload-drag-icon" style={{ marginBottom: 4 }}>
+        <InboxOutlined />
+      </p>
+      <p className="ant-upload-text">
+        {visibleFiles.length === 0 ? 'No files yet. ' : ''}Click or drag files here. A <code>.zip</code> is expanded
+        into its folder structure.
+      </p>
+      <p className="ant-upload-hint">Up to 3 MB per file.</p>
+    </Upload.Dragger>
+  );
+
   return (
-    <div style={{ border: '1px solid #d9d9d9', borderRadius: 8, overflow: 'hidden' }}>
-      {/* Header Section */}
-      <div
-        style={{
-          padding: '16px 20px',
-          background: 'linear-gradient(to right, #f0f5ff, #ffffff)',
-          borderBottom: '1px solid #d9d9d9',
-        }}
-      >
-        <Space orientation="vertical" size={8} style={{ width: '100%' }}>
-          <Space size={12}>
-            <FileOutlined style={{ fontSize: 18, color: colors.actionBlue }} />
-            <Text strong style={{ fontSize: 16 }}>
-              Assignment Files
-            </Text>
-            <Tag color="blue" style={{ fontSize: 13 }}>
-              {files.filter((f) => isStudentVisibleFile(f)).length}{' '}
-              {files.filter((f) => isStudentVisibleFile(f)).length === 1 ? 'file' : 'files'}
-            </Tag>
-            <Space size={24} style={{ marginLeft: 30 }}>
-              <div>
-                <Tag color="success" style={{ marginRight: 6 }}>
-                  {files.filter((f) => f.required && isStudentVisibleFile(f)).length} Required
-                </Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Must be submitted
-                </Text>
-              </div>
-              <div>
-                <Tag color="default" style={{ marginRight: 6 }}>
-                  {files.filter((f) => !f.required && isStudentVisibleFile(f)).length} Optional
-                </Tag>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Can be submitted
-                </Text>
-              </div>
-            </Space>
-          </Space>
-        </Space>
+    <div>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0 }}>Assignment Files</h3>
+          <div style={{ fontSize: '12px', color: '#888', marginTop: 4 }}>
+            {visibleFiles.length} file{visibleFiles.length === 1 ? '' : 's'} · {requiredCount} required ·{' '}
+            {visibleFiles.length - requiredCount} optional. Required files must be part of every submission.
+          </div>
+        </div>
+        <Button icon={<FileAddOutlined />} onClick={() => openNameModal(null)}>
+          Add empty file
+        </Button>
       </div>
 
-      {/* Table Section */}
-      <div>
+      {visibleFiles.length > 0 && (
         <Table
           columns={columns}
-          dataSource={files.filter((f) => isStudentVisibleFile(f))}
+          dataSource={visibleFiles}
           rowKey="id"
           pagination={false}
-          size="middle"
-          style={{ marginBottom: 0, minHeight: 200 }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <div style={{ padding: '32px 0' }}>
-                    <Text type="secondary" style={{ fontSize: 14 }}>
-                      No Assignment files yet. Add files that students will download to begin the assignment.
-                    </Text>
-                  </div>
-                }
-              />
-            ),
-          }}
+          size="small"
+          style={{ marginBottom: 16 }}
+          locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No files" /> }}
         />
-      </div>
+      )}
 
-      {/* Footer Section */}
-      <div
-        style={{
-          padding: '20px 24px',
-          background: '#fafafa',
-          borderTop: '1px solid #e8e8e8',
-        }}
+      {dropZone}
+
+      <Modal
+        title={nameModal?.editing ? `Rename ${fullPathOf(nameModal.editing)}` : 'Add empty file'}
+        open={nameModal !== null}
+        onCancel={() => setNameModal(null)}
+        onOk={() => nameForm.submit()}
+        okText={nameModal?.editing ? 'Save' : 'Add'}
+        width={480}
+        destroyOnHidden
       >
-        <Space vertical style={{ width: '100%' }} size={16}>
-          {/* Bulk Upload Section */}
-          <div>
-            <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
-              Bulk Upload
-            </Text>
-            <div
-              style={{
-                padding: '16px',
-                background: 'white',
-                border: '1px dashed #d9d9d9',
-                borderRadius: 6,
-                textAlign: 'center',
-              }}
-            >
-              <Space vertical size={8}>
-                <Upload showUploadList={false} beforeUpload={handleBulkUpload} multiple={false} accept="*">
-                  <Button icon={<UploadOutlined />} size="large" type="dashed">
-                    Upload File or Zip Archive
-                  </Button>
-                </Upload>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Upload a single file, or a .zip archive containing your entire project structure. Maximum file size is
-                  3MB.
-                </Text>
-              </Space>
-            </div>
-          </div>
-
-          {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ flex: 1, height: 1, background: '#d9d9d9' }} />
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              OR
-            </Text>
-            <div style={{ flex: 1, height: 1, background: '#d9d9d9' }} />
-          </div>
-          {/* Manual Add Section */}
-          <div>
-            <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>
-              Add Individual File
-            </Text>
-            <Space.Compact style={{ width: '100%' }}>
-              <Input
-                placeholder="Directory"
-                value={newFilePath}
-                onChange={(e) => setNewFilePath(e.target.value)}
-                style={{ width: '30%' }}
-                prefix={<FolderOutlined style={{ color: '#8c8c8c' }} />}
-                size="large"
-              />
-              <Input
-                placeholder="File name (e.g., main.py)"
-                value={newFileName}
-                onChange={(e) => setNewFileName(e.target.value)}
-                onPressEnter={handleAddFile}
-                style={{ width: '50%' }}
-                size="large"
-                status={newFileName.trim() && isDuplicateName(newFileName.trim()) ? 'error' : undefined}
-                suffix={
-                  newFileName.trim() && isDuplicateName(newFileName.trim()) ? (
-                    <Tooltip title="A file with this name already exists">
-                      <Text type="danger" style={{ fontSize: 12 }}>
-                        Duplicate
-                      </Text>
-                    </Tooltip>
-                  ) : null
-                }
-              />
-              <Button
-                type="primary"
-                icon={<PlusOutlined />}
-                onClick={handleAddFile}
-                disabled={!newFileName.trim() || isDuplicateName(newFileName.trim())}
-                size="large"
-                style={{ minWidth: 120 }}
-              >
-                Add File
-              </Button>
-            </Space.Compact>
-          </div>
-        </Space>
-      </div>
+        {!nameModal?.editing && (
+          <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+            Creates a file with no content that you can fill in from <em>View</em>, for example a stub students must
+            complete. To add an existing file, drop it on the panel instead.
+          </Text>
+        )}
+        <Form form={nameForm} layout="vertical" onFinish={handleNameSubmit}>
+          <Form.Item name="path" label="Directory" extra="Leave empty for the root of the assignment.">
+            <Input placeholder="e.g. src" />
+          </Form.Item>
+          <Form.Item
+            name="name"
+            label="File name"
+            rules={[
+              { required: true, whitespace: true, message: 'Enter a file name' },
+              {
+                validator: (_, v: string) =>
+                  v && isDuplicateName(v.trim(), nameModal?.editing?.id)
+                    ? Promise.reject(new Error('A file with this name already exists'))
+                    : Promise.resolve(),
+              },
+            ]}
+          >
+            <Input placeholder="e.g. main.py" />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       {/* Code Viewing/Editing Modal */}
       <Modal

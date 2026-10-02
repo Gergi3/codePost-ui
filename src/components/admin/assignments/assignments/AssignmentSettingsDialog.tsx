@@ -705,7 +705,11 @@ const CollectionCreateForm: React.FC<IFormProps> = (props) => {
               key: 'environment',
               children: (
                 <div style={tabPaneStyle}>
-                  <EnvironmentShellWidget environmentId={environmentId} hasAssignmentFiles={hasAssignmentFiles} />
+                  <EnvironmentShellWidget
+                    environmentId={environmentId}
+                    hasAssignmentFiles={hasAssignmentFiles}
+                    assignmentId={assignment.id}
+                  />
                 </div>
               ),
             },
