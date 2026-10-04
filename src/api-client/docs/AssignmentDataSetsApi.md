@@ -391,7 +391,7 @@ This endpoint does not need any parameter.
 
 ## partialUpdate
 
-> AssignmentDataSetUpdate partialUpdate(id, name, description, mountPath, isActive, isTestResource, isStudentVariant, autogradeAllVariants)
+> AssignmentDataSetUpdate partialUpdate(id, name, description, mountPath, isActive, hidden, isTestResource, isStudentVariant, autogradeAllVariants)
 
 ViewSet for managing assignment datasets Datasets are files (compressed or raw) that are mounted into the execution environment when students submit code or when code is executed via the API. Typical use case: Large training datasets for ML assignments
 
@@ -427,6 +427,8 @@ async function example() {
     mountPath: mountPath_example,
     // boolean (optional)
     isActive: true,
+    // boolean | If True, this dataset will be hidden from students. (optional)
+    hidden: true,
     // boolean (optional)
     isTestResource: true,
     // boolean (optional)
@@ -456,6 +458,7 @@ example().catch(console.error);
 | **description**          | `string`  | Optional description of the data set.                                                                                                                                                                                                                                                                        | [Optional] [Defaults to `undefined`] |
 | **mountPath**            | `string`  |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
 | **isActive**             | `boolean` |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
+| **hidden**               | `boolean` | If True, this dataset will be hidden from students.                                                                                                                                                                                                                                                          | [Optional] [Defaults to `undefined`] |
 | **isTestResource**       | `boolean` |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
 | **isStudentVariant**     | `boolean` |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
 | **autogradeAllVariants** | `boolean` | Only meaningful when is_student_variant is True. If True, the autograder reruns a finalized submission against every OTHER variant in the pool (in addition to the student\\\&#39;s own), recording one SubmissionVariantRun per variant — an anti-hardcoding check. Must be set consistently across a pool. | [Optional] [Defaults to `undefined`] |
@@ -631,7 +634,7 @@ example().catch(console.error);
 
 ## update
 
-> AssignmentDataSetUpdate update(id, name, description, mountPath, isActive, isTestResource, isStudentVariant, autogradeAllVariants)
+> AssignmentDataSetUpdate update(id, name, description, mountPath, isActive, hidden, isTestResource, isStudentVariant, autogradeAllVariants)
 
 Update a dataset (metadata only, not file)
 
@@ -667,6 +670,8 @@ async function example() {
     mountPath: mountPath_example,
     // boolean (optional)
     isActive: true,
+    // boolean | If True, this dataset will be hidden from students. (optional)
+    hidden: true,
     // boolean (optional)
     isTestResource: true,
     // boolean (optional)
@@ -696,6 +701,7 @@ example().catch(console.error);
 | **description**          | `string`  | Optional description of the data set.                                                                                                                                                                                                                                                                        | [Optional] [Defaults to `undefined`] |
 | **mountPath**            | `string`  |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
 | **isActive**             | `boolean` |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
+| **hidden**               | `boolean` | If True, this dataset will be hidden from students.                                                                                                                                                                                                                                                          | [Optional] [Defaults to `undefined`] |
 | **isTestResource**       | `boolean` |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
 | **isStudentVariant**     | `boolean` |                                                                                                                                                                                                                                                                                                              | [Optional] [Defaults to `undefined`] |
 | **autogradeAllVariants** | `boolean` | Only meaningful when is_student_variant is True. If True, the autograder reruns a finalized submission against every OTHER variant in the pool (in addition to the student\\\&#39;s own), recording one SubmissionVariantRun per variant — an anti-hardcoding check. Must be set consistently across a pool. | [Optional] [Defaults to `undefined`] |

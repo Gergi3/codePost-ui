@@ -15,6 +15,15 @@ export interface PendingAgentAction {
   created: string;
 }
 
+// ─── Types for agent student aliases (MCP pseudonymization) ──────────────────
+
+export interface AgentAliasMatch {
+  alias: string;
+  email: string;
+  username: string;
+  active: boolean;
+}
+
 // ─── Types for Course API Keys ────────────────────────────────────────────────
 
 export type CourseAPIKeyScope = 'read' | 'write' | 'admin';
@@ -106,6 +115,12 @@ export class Course {
 
   public static deleteAPIKey = (courseId: number, keyId: number) =>
     apiFetch<void>(`/courses/${courseId}/apiKeys/${keyId}/`, { method: 'DELETE' });
+
+  // ── Agent student aliases ─────────────────────────────────────────────────
+
+  /** Resolve an alias, email or NetID; refused for course-scoped credentials. */
+  public static lookupAgentAlias = (courseId: number, q: string): Promise<{ matches: AgentAliasMatch[] }> =>
+    apiFetch(`/courses/${courseId}/agentAliases/?q=${encodeURIComponent(q)}`);
 
   // ── Pending agent actions (MCP Tier-3 confirmations) ──────────────────────
   // Only a signed-in course admin can see or decide these — never a

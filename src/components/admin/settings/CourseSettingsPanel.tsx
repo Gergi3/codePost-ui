@@ -14,6 +14,7 @@ import {
   RobotOutlined,
   SettingOutlined,
   InfoCircleOutlined,
+  UserSwitchOutlined,
   BarChartOutlined,
   ClockCircleOutlined,
 } from '@ant-design/icons';
@@ -30,6 +31,7 @@ import AISettingsCard from './AISettingsCard';
 import CourseAIUsageCard from './CourseAIUsageCard';
 import CourseAPIKeysCard from './CourseAPIKeysCard';
 import PendingAgentActionsCard from './PendingAgentActionsCard';
+import StudentAliasLookupCard from './StudentAliasLookupCard';
 
 import { timezones } from '../other/timezones';
 import { colors } from '../../../theme/colors';
@@ -82,6 +84,13 @@ const ALL_SECTIONS: SectionDef[] = [
     label: 'Pending Agent Actions',
     icon: <SafetyOutlined />,
     description: 'Agent approvals',
+    capability: 'manage_course_api_keys',
+  },
+  {
+    key: 'student-aliases',
+    label: 'Student Aliases',
+    icon: <UserSwitchOutlined />,
+    description: 'Resolve agent aliases',
     capability: 'manage_course_api_keys',
   },
   { key: 'info', label: 'Info', icon: <InfoCircleOutlined />, description: 'IDs and metadata' },
@@ -622,6 +631,13 @@ const SettingsForm: React.FC<IFormProps> = (props) => {
       {visibleSectionKeys.includes('pending-agent-actions') && (
         <div ref={setSectionRef('pending-agent-actions')} style={styles.section}>
           <PendingAgentActionsCard courseId={thisCourse.id} />
+        </div>
+      )}
+
+      {/* ━━━ Student Aliases ━━━ */}
+      {visibleSectionKeys.includes('student-aliases') && (
+        <div ref={setSectionRef('student-aliases')} style={styles.section}>
+          <StudentAliasLookupCard courseId={thisCourse.id} />
         </div>
       )}
 

@@ -379,6 +379,50 @@ export interface ActivateCipResponse {
   success: boolean;
 }
 /**
+ *
+ * @export
+ * @interface AgentAliasLookupResponse
+ */
+export interface AgentAliasLookupResponse {
+  /**
+   *
+   * @type {Array<AgentAliasMatch>}
+   * @memberof AgentAliasLookupResponse
+   */
+  matches: Array<AgentAliasMatch>;
+}
+/**
+ *
+ * @export
+ * @interface AgentAliasMatch
+ */
+export interface AgentAliasMatch {
+  /**
+   *
+   * @type {string}
+   * @memberof AgentAliasMatch
+   */
+  alias: string;
+  /**
+   *
+   * @type {string}
+   * @memberof AgentAliasMatch
+   */
+  email: string;
+  /**
+   *
+   * @type {string}
+   * @memberof AgentAliasMatch
+   */
+  username: string;
+  /**
+   *
+   * @type {boolean}
+   * @memberof AgentAliasMatch
+   */
+  active: boolean;
+}
+/**
  * * `all` - All linked tests must pass
  * * `any` - At least one linked test must pass
  * * `percentage` - Percentage of linked tests that pass
@@ -1611,6 +1655,12 @@ export interface AssignmentDataSetUpdate {
    * @memberof AssignmentDataSetUpdate
    */
   isActive?: boolean;
+  /**
+   * If True, this dataset will be hidden from students.
+   * @type {boolean}
+   * @memberof AssignmentDataSetUpdate
+   */
+  hidden?: boolean;
   /**
    *
    * @type {boolean}
@@ -3958,8 +4008,8 @@ export interface CourseAPIKeyRead {
    * How much this key may do. Agent tools are filtered by it: a key never even sees the tools above its scope. 'read' is the safe default.
    *
    * * `read` - Read only
-   * * `write` - Read and write (no deletes, no student email)
-   * * `admin` - Full course admin (deletes, resets, student email)
+   * * `write` - Read and write (no deletes, no emailing students)
+   * * `admin` - Full course admin (deletes, resets, emailing students)
    * @type {CourseAPIKeyScopeEnum}
    * @memberof CourseAPIKeyRead
    */
@@ -3992,8 +4042,8 @@ export interface CourseAPIKeyRead {
 
 /**
  * * `read` - Read only
- * * `write` - Read and write (no deletes, no student email)
- * * `admin` - Full course admin (deletes, resets, student email)
+ * * `write` - Read and write (no deletes, no emailing students)
+ * * `admin` - Full course admin (deletes, resets, emailing students)
  * @export
  * @enum {string}
  */
@@ -7355,6 +7405,12 @@ export interface PatchedAssignmentDataSetUpdate {
    * @memberof PatchedAssignmentDataSetUpdate
    */
   isActive?: boolean;
+  /**
+   * If True, this dataset will be hidden from students.
+   * @type {boolean}
+   * @memberof PatchedAssignmentDataSetUpdate
+   */
+  hidden?: boolean;
   /**
    *
    * @type {boolean}
