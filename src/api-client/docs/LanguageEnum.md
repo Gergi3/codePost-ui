@@ -1,6 +1,6 @@
 # LanguageEnum
 
-- `python-3.12` - python-3.12 * `python-3.11` - python-3.11 * `python-3.10` - python-3.10 * `python-3.7` - python-3.7 * `python-2.7` - python-2.7 * `java` - java * `java-17` - java-17 * `java-11` - java-11 * `c/c++` - c/c++ * `node-20` - node-20 * `node-18` - node-18 * `r-4` - r-4 * `ruby` - ruby * `php` - php
+- `python-3.12` - python-3.12 * `python-3.11` - python-3.11 * `python-3.10` - python-3.10 * `python-3.7` - python-3.7 * `python-2.7` - python-2.7 * `java` - java * `java-27` - java-27 * `java-17` - java-17 * `java-11` - java-11 * `c/c++` - c/c++ * `node-20` - node-20 * `node-18` - node-18 * `r-4` - r-4 * `ruby` - ruby * `php` - php * `other` - other
 
 ## Properties
 

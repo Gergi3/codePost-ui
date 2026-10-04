@@ -12,8 +12,8 @@ import {
   AuthApi,
   AutograderApi,
   CapabilitiesApi,
-  CommentsApi,
   CommentTemplatesApi,
+  CommentsApi,
   CourseFilesApi,
   CoursesApi,
   DashboardApi,
@@ -47,8 +47,8 @@ import {
   SectionsApi,
   StudentDataSetAssignmentsApi,
   SubmissionFilesApi,
-  SubmissionsApi,
   SubmissionTestsApi,
+  SubmissionsApi,
   SubscribeApi,
   SuggestedCommentsApi,
   SuggestedQuizQuestionsApi,
@@ -111,8 +111,8 @@ export const assignmentsApi = new AssignmentsApi(apiClientConfig);
 export const authApi = new AuthApi(apiClientConfig);
 export const autograderApi = new AutograderApi(apiClientConfig);
 export const capabilitiesApi = new CapabilitiesApi(apiClientConfig);
-export const commentsApi = new CommentsApi(apiClientConfig);
 export const commentTemplatesApi = new CommentTemplatesApi(apiClientConfig);
+export const commentsApi = new CommentsApi(apiClientConfig);
 export const courseFilesApi = new CourseFilesApi(apiClientConfig);
 export const coursesApi = new CoursesApi(apiClientConfig);
 export const dashboardApi = new DashboardApi(apiClientConfig);
@@ -146,8 +146,8 @@ export const rubricCommentsApi = new RubricCommentsApi(apiClientConfig);
 export const sectionsApi = new SectionsApi(apiClientConfig);
 export const studentDataSetAssignmentsApi = new StudentDataSetAssignmentsApi(apiClientConfig);
 export const submissionFilesApi = new SubmissionFilesApi(apiClientConfig);
-export const submissionsApi = new SubmissionsApi(apiClientConfig);
 export const submissionTestsApi = new SubmissionTestsApi(apiClientConfig);
+export const submissionsApi = new SubmissionsApi(apiClientConfig);
 export const subscribeApi = new SubscribeApi(apiClientConfig);
 export const suggestedCommentsApi = new SuggestedCommentsApi(apiClientConfig);
 export const suggestedQuizQuestionsApi = new SuggestedQuizQuestionsApi(apiClientConfig);

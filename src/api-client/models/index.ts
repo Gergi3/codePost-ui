@@ -6059,6 +6059,7 @@ export interface JwtOttResponse {
  * * `python-3.7` - python-3.7
  * * `python-2.7` - python-2.7
  * * `java` - java
+ * * `java-27` - java-27
  * * `java-17` - java-17
  * * `java-11` - java-11
  * * `c/c++` - c/c++
@@ -6067,6 +6068,7 @@ export interface JwtOttResponse {
  * * `r-4` - r-4
  * * `ruby` - ruby
  * * `php` - php
+ * * `other` - other
  * @export
  * @enum {string}
  */
@@ -6077,6 +6079,7 @@ export enum LanguageEnum {
   Python37 = 'python-3.7',
   Python27 = 'python-2.7',
   Java = 'java',
+  Java27 = 'java-27',
   Java17 = 'java-17',
   Java11 = 'java-11',
   CC = 'c/c++',
