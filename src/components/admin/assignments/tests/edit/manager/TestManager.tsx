@@ -1,12 +1,13 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
 import { useEffect, useState, useCallback } from 'react';
-import { Button, Empty, Spin, message, Tooltip, Popconfirm } from 'antd';
-import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
-import { testCategoriesApi } from '../../../../../../api-client/clients';
+import { Button, Empty, Spin, message, Tooltip, Popconfirm, Upload, Space } from 'antd';
+import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
+import { testCategoriesApi, testCategoryFilesApi } from '../../../../../../api-client/clients';
 import { AssignmentFileType, AssignmentType, TestCategoryType } from '../../../../../../types/models';
 import { TestCategoryUI } from './TestCategoryUI';
 import { loadIDList } from '../../../../../../utils/generics';
 import styles from '../../../rubric/RubricSideBar.module.css'; // Reusing styles
+import type { RcFile } from 'antd/es/upload';
 
 interface IProps {
   assignment: AssignmentType;
@@ -18,6 +19,7 @@ export const TestManager = (props: IProps) => {
   const [categories, setCategories] = useState<TestCategoryType[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
+  const [bulkUploading, setBulkUploading] = useState(false);
 
   const fetchCategories = useCallback(async () => {
     setLoading(true);
@@ -62,6 +64,59 @@ export const TestManager = (props: IProps) => {
       message.error('Failed to create category');
     }
   };
+
+  /**
+   * Bulk-upload: drop N .java files → create ONE category (named after the
+   * first file) with one TestCategoryFile per file. Tests are auto-parsed.
+   */
+  const handleBulkUpload = useCallback(async (fileList: RcFile[]): Promise<false> => {
+    if (!fileList.length) return false;
+    setBulkUploading(true);
+    try {
+      // Create a single category named after the first file (stem without .java).
+      const firstName = fileList[0].name.replace(/\.java$/i, '');
+      const newCat = await testCategoriesApi.create({
+        testCategory: {
+          name: firstName,
+          assignment: props.assignment.id,
+          testScript: '',
+          maxPoints: 0,
+          sortKey: categories.length,
+          targetFileName: null,
+        },
+      });
+
+      // Upload each .java file as a TestCategoryFile.
+      for (let i = 0; i < fileList.length; i++) {
+        const f = fileList[i];
+        const content = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsText(f as unknown as File);
+        });
+        await testCategoryFilesApi.create({
+          testCategoryFile: {
+            category: newCat.id,
+            name: f.name,
+            content,
+            sortKey: i,
+          },
+        });
+      }
+
+      // Reload the category to pick up parsed testCases/maxPoints.
+      const updated = await testCategoriesApi.retrieve({ id: newCat.id });
+      setCategories((prev) => [...prev, updated]);
+      setActiveCategoryId(updated.id);
+      message.success(`Created "${firstName}" with ${fileList.length} test file${fileList.length !== 1 ? 's' : ''}`);
+    } catch {
+      message.error('Bulk upload failed');
+    } finally {
+      setBulkUploading(false);
+    }
+    return false;
+  }, [categories.length, props.assignment.id]);
 
   const handleDeleteCategory = async (cat: TestCategoryType) => {
     try {
@@ -114,9 +169,29 @@ export const TestManager = (props: IProps) => {
           <span className={styles.sidebarTitle} style={{ fontWeight: 600 }}>
             Test Categories
           </span>
-          <Tooltip title="Add new category">
-            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={handleAddCategory} />
-          </Tooltip>
+          <Space size="small">
+            <Tooltip title="Bulk-upload test files into one new category">
+              <Upload
+                multiple
+                accept=".java"
+                showUploadList={false}
+                beforeUpload={(_, list) => {
+                  handleBulkUpload(list as RcFile[]);
+                  return false;
+                }}
+                disabled={bulkUploading}
+              >
+                <Button
+                  size="small"
+                  icon={<UploadOutlined />}
+                  loading={bulkUploading}
+                />
+              </Upload>
+            </Tooltip>
+            <Tooltip title="Add new category">
+              <Button size="small" type="primary" icon={<PlusOutlined />} onClick={handleAddCategory} />
+            </Tooltip>
+          </Space>
         </div>
 
         <ul

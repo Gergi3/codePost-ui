@@ -10697,6 +10697,49 @@ export interface PatchedTestCategory {
    * @memberof PatchedTestCategory
    */
   readonly resources?: Array<TestCategoryResource>;
+  /**
+   *
+   * @type {Array<TestCategoryFile>}
+   * @memberof PatchedTestCategory
+   */
+  readonly testFiles?: Array<TestCategoryFile>;
+}
+/**
+ *
+ * @export
+ * @interface PatchedTestCategoryFile
+ */
+export interface PatchedTestCategoryFile {
+  /**
+   *
+   * @type {number}
+   * @memberof PatchedTestCategoryFile
+   */
+  readonly id?: number;
+  /**
+   * The related test category.
+   * @type {number}
+   * @memberof PatchedTestCategoryFile
+   */
+  category?: number;
+  /**
+   * File name, e.g. 'FooTest.java'.
+   * @type {string}
+   * @memberof PatchedTestCategoryFile
+   */
+  name?: string;
+  /**
+   * The file's source contents.
+   * @type {string}
+   * @memberof PatchedTestCategoryFile
+   */
+  content?: string;
+  /**
+   * Integer to specify display order.
+   * @type {number}
+   * @memberof PatchedTestCategoryFile
+   */
+  sortKey?: number;
 }
 /**
  *
@@ -15748,6 +15791,49 @@ export interface TestCategory {
    * @memberof TestCategory
    */
   readonly resources: Array<TestCategoryResource>;
+  /**
+   *
+   * @type {Array<TestCategoryFile>}
+   * @memberof TestCategory
+   */
+  readonly testFiles: Array<TestCategoryFile>;
+}
+/**
+ *
+ * @export
+ * @interface TestCategoryFile
+ */
+export interface TestCategoryFile {
+  /**
+   *
+   * @type {number}
+   * @memberof TestCategoryFile
+   */
+  readonly id: number;
+  /**
+   * The related test category.
+   * @type {number}
+   * @memberof TestCategoryFile
+   */
+  category: number;
+  /**
+   * File name, e.g. 'FooTest.java'.
+   * @type {string}
+   * @memberof TestCategoryFile
+   */
+  name: string;
+  /**
+   * The file's source contents.
+   * @type {string}
+   * @memberof TestCategoryFile
+   */
+  content?: string;
+  /**
+   * Integer to specify display order.
+   * @type {number}
+   * @memberof TestCategoryFile
+   */
+  sortKey?: number;
 }
 /**
  *

@@ -14,10 +14,10 @@
  */
 
 import * as runtime from '../runtime';
-import type { PatchedTestCategory, TestCategory } from '../models/index';
+import type { PatchedTestCategoryFile, TestCategoryFile } from '../models/index';
 
 export interface CreateRequest {
-  testCategory: Omit<TestCategory, 'id' | 'testCases' | 'resources' | 'testFiles'>;
+  testCategoryFile: Omit<TestCategoryFile, 'id'>;
 }
 
 export interface DestroyRequest {
@@ -26,42 +26,33 @@ export interface DestroyRequest {
 
 export interface PartialUpdateRequest {
   id: number;
-  patchedTestCategory?: Omit<PatchedTestCategory, 'id' | 'testCases' | 'resources' | 'testFiles'>;
-}
-
-export interface PreviewScriptCreateRequest {
-  testCategory: Omit<TestCategory, 'id' | 'testCases' | 'resources' | 'testFiles'>;
+  patchedTestCategoryFile?: Omit<PatchedTestCategoryFile, 'id'>;
 }
 
 export interface RetrieveRequest {
   id: number;
 }
 
-export interface SyncTestsCreateRequest {
-  id: number;
-  testCategory: Omit<TestCategory, 'id' | 'testCases' | 'resources' | 'testFiles'>;
-}
-
 export interface UpdateRequest {
   id: number;
-  testCategory: Omit<TestCategory, 'id' | 'testCases' | 'resources' | 'testFiles'>;
+  testCategoryFile: Omit<TestCategoryFile, 'id'>;
 }
 
 /**
  *
  */
-export class TestCategoriesApi extends runtime.BaseAPI {
+export class TestCategoryFilesApi extends runtime.BaseAPI {
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async createRaw(
     requestParameters: CreateRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<TestCategory>> {
-    if (requestParameters['testCategory'] == null) {
+  ): Promise<runtime.ApiResponse<TestCategoryFile>> {
+    if (requestParameters['testCategoryFile'] == null) {
       throw new runtime.RequiredError(
-        'testCategory',
-        'Required parameter "testCategory" was null or undefined when calling create().',
+        'testCategoryFile',
+        'Required parameter "testCategoryFile" was null or undefined when calling create().',
       );
     }
 
@@ -86,7 +77,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
       headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
     }
 
-    let urlPath = `/testCategories/`;
+    let urlPath = `/testCategoryFiles/`;
 
     const response = await this.request(
       {
@@ -94,7 +85,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
         method: 'POST',
         headers: headerParameters,
         query: queryParameters,
-        body: requestParameters['testCategory'],
+        body: requestParameters['testCategoryFile'],
       },
       initOverrides,
     );
@@ -103,18 +94,18 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async create(
     requestParameters: CreateRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<TestCategory> {
+  ): Promise<TestCategoryFile> {
     const response = await this.createRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async destroyRaw(
     requestParameters: DestroyRequest,
@@ -143,7 +134,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
       headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
     }
 
-    let urlPath = `/testCategories/{id}/`;
+    let urlPath = `/testCategoryFiles/{id}/`;
     urlPath = urlPath.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id'])));
 
     const response = await this.request(
@@ -160,7 +151,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async destroy(
     requestParameters: DestroyRequest,
@@ -170,11 +161,11 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async listRaw(
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<Array<TestCategory>>> {
+  ): Promise<runtime.ApiResponse<Array<TestCategoryFile>>> {
     const queryParameters: any = {};
 
     const headerParameters: runtime.HTTPHeaders = {};
@@ -194,7 +185,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
       headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
     }
 
-    let urlPath = `/testCategories/`;
+    let urlPath = `/testCategoryFiles/`;
 
     const response = await this.request(
       {
@@ -210,20 +201,20 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
-  async list(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<TestCategory>> {
+  async list(initOverrides?: RequestInit | runtime.InitOverrideFunction): Promise<Array<TestCategoryFile>> {
     const response = await this.listRaw(initOverrides);
     return await response.value();
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async partialUpdateRaw(
     requestParameters: PartialUpdateRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<TestCategory>> {
+  ): Promise<runtime.ApiResponse<TestCategoryFile>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError(
         'id',
@@ -252,7 +243,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
       headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
     }
 
-    let urlPath = `/testCategories/{id}/`;
+    let urlPath = `/testCategoryFiles/{id}/`;
     urlPath = urlPath.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id'])));
 
     const response = await this.request(
@@ -261,7 +252,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
         method: 'PATCH',
         headers: headerParameters,
         query: queryParameters,
-        body: requestParameters['patchedTestCategory'],
+        body: requestParameters['patchedTestCategoryFile'],
       },
       initOverrides,
     );
@@ -270,85 +261,23 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async partialUpdate(
     requestParameters: PartialUpdateRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<TestCategory> {
+  ): Promise<TestCategoryFile> {
     const response = await this.partialUpdateRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
   /**
-   * Preview the tests that would be generated from a script.
-   */
-  async previewScriptCreateRaw(
-    requestParameters: PreviewScriptCreateRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<TestCategory>> {
-    if (requestParameters['testCategory'] == null) {
-      throw new runtime.RequiredError(
-        'testCategory',
-        'Required parameter "testCategory" was null or undefined when calling previewScriptCreate().',
-      );
-    }
-
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    headerParameters['Content-Type'] = 'application/json';
-
-    if (
-      this.configuration &&
-      (this.configuration.username !== undefined || this.configuration.password !== undefined)
-    ) {
-      headerParameters['Authorization'] =
-        'Basic ' + btoa(this.configuration.username + ':' + this.configuration.password);
-    }
-    if (this.configuration && this.configuration.apiKey) {
-      headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // tokenAuth authentication
-    }
-
-    if (this.configuration && this.configuration.apiKey) {
-      headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
-    }
-
-    let urlPath = `/testCategories/preview-script/`;
-
-    const response = await this.request(
-      {
-        path: urlPath,
-        method: 'POST',
-        headers: headerParameters,
-        query: queryParameters,
-        body: requestParameters['testCategory'],
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response);
-  }
-
-  /**
-   * Preview the tests that would be generated from a script.
-   */
-  async previewScriptCreate(
-    requestParameters: PreviewScriptCreateRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<TestCategory> {
-    const response = await this.previewScriptCreateRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async retrieveRaw(
     requestParameters: RetrieveRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<TestCategory>> {
+  ): Promise<runtime.ApiResponse<TestCategoryFile>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling retrieve().');
     }
@@ -372,7 +301,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
       headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
     }
 
-    let urlPath = `/testCategories/{id}/`;
+    let urlPath = `/testCategoryFiles/{id}/`;
     urlPath = urlPath.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id'])));
 
     const response = await this.request(
@@ -389,101 +318,31 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async retrieve(
     requestParameters: RetrieveRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<TestCategory> {
+  ): Promise<TestCategoryFile> {
     const response = await this.retrieveRaw(requestParameters, initOverrides);
     return await response.value();
   }
 
   /**
-   * Manually trigger test case sync from the category\'s testScript. Use this if test cases were not created automatically on save.
-   */
-  async syncTestsCreateRaw(
-    requestParameters: SyncTestsCreateRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<TestCategory>> {
-    if (requestParameters['id'] == null) {
-      throw new runtime.RequiredError(
-        'id',
-        'Required parameter "id" was null or undefined when calling syncTestsCreate().',
-      );
-    }
-
-    if (requestParameters['testCategory'] == null) {
-      throw new runtime.RequiredError(
-        'testCategory',
-        'Required parameter "testCategory" was null or undefined when calling syncTestsCreate().',
-      );
-    }
-
-    const queryParameters: any = {};
-
-    const headerParameters: runtime.HTTPHeaders = {};
-
-    headerParameters['Content-Type'] = 'application/json';
-
-    if (
-      this.configuration &&
-      (this.configuration.username !== undefined || this.configuration.password !== undefined)
-    ) {
-      headerParameters['Authorization'] =
-        'Basic ' + btoa(this.configuration.username + ':' + this.configuration.password);
-    }
-    if (this.configuration && this.configuration.apiKey) {
-      headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // tokenAuth authentication
-    }
-
-    if (this.configuration && this.configuration.apiKey) {
-      headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
-    }
-
-    let urlPath = `/testCategories/{id}/sync-tests/`;
-    urlPath = urlPath.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id'])));
-
-    const response = await this.request(
-      {
-        path: urlPath,
-        method: 'POST',
-        headers: headerParameters,
-        query: queryParameters,
-        body: requestParameters['testCategory'],
-      },
-      initOverrides,
-    );
-
-    return new runtime.JSONApiResponse(response);
-  }
-
-  /**
-   * Manually trigger test case sync from the category\'s testScript. Use this if test cases were not created automatically on save.
-   */
-  async syncTestsCreate(
-    requestParameters: SyncTestsCreateRequest,
-    initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<TestCategory> {
-    const response = await this.syncTestsCreateRaw(requestParameters, initOverrides);
-    return await response.value();
-  }
-
-  /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async updateRaw(
     requestParameters: UpdateRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<runtime.ApiResponse<TestCategory>> {
+  ): Promise<runtime.ApiResponse<TestCategoryFile>> {
     if (requestParameters['id'] == null) {
       throw new runtime.RequiredError('id', 'Required parameter "id" was null or undefined when calling update().');
     }
 
-    if (requestParameters['testCategory'] == null) {
+    if (requestParameters['testCategoryFile'] == null) {
       throw new runtime.RequiredError(
-        'testCategory',
-        'Required parameter "testCategory" was null or undefined when calling update().',
+        'testCategoryFile',
+        'Required parameter "testCategoryFile" was null or undefined when calling update().',
       );
     }
 
@@ -508,7 +367,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
       headerParameters['Authorization'] = await this.configuration.apiKey('Authorization'); // courseKeyAuth authentication
     }
 
-    let urlPath = `/testCategories/{id}/`;
+    let urlPath = `/testCategoryFiles/{id}/`;
     urlPath = urlPath.replace(`{${'id'}}`, encodeURIComponent(String(requestParameters['id'])));
 
     const response = await this.request(
@@ -517,7 +376,7 @@ export class TestCategoriesApi extends runtime.BaseAPI {
         method: 'PUT',
         headers: headerParameters,
         query: queryParameters,
-        body: requestParameters['testCategory'],
+        body: requestParameters['testCategoryFile'],
       },
       initOverrides,
     );
@@ -526,12 +385,12 @@ export class TestCategoriesApi extends runtime.BaseAPI {
   }
 
   /**
-   * list: Return a list of all the testCategories.  create: Create a new testCategories.  retrieve: Return the given testCategories.  update: Update a testCategories.  partial_update: Update a testCategories.  delete: Delete a testCategories.
+   * list: Return a list of all the testCategoryFiles.  create: Create a new testCategoryFile.  retrieve: Return the given testCategoryFile.  update: Update a testCategoryFile.  partial_update: Update a testCategoryFile.  delete: Delete a testCategoryFile.
    */
   async update(
     requestParameters: UpdateRequest,
     initOverrides?: RequestInit | runtime.InitOverrideFunction,
-  ): Promise<TestCategory> {
+  ): Promise<TestCategoryFile> {
     const response = await this.updateRaw(requestParameters, initOverrides);
     return await response.value();
   }

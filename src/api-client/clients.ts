@@ -55,6 +55,7 @@ import {
   SystemApi,
   TestCasesApi,
   TestCategoriesApi,
+  TestCategoryFilesApi,
   TestCategoryResourcesApi,
   TmpScriptApi,
   TokenAuthApi,
@@ -154,6 +155,7 @@ export const suggestedQuizQuestionsApi = new SuggestedQuizQuestionsApi(apiClient
 export const systemApi = new SystemApi(apiClientConfig);
 export const testCasesApi = new TestCasesApi(apiClientConfig);
 export const testCategoriesApi = new TestCategoriesApi(apiClientConfig);
+export const testCategoryFilesApi = new TestCategoryFilesApi(apiClientConfig);
 export const testCategoryResourcesApi = new TestCategoryResourcesApi(apiClientConfig);
 export const tmpScriptApi = new TmpScriptApi(apiClientConfig);
 export const tokenAuthApi = new TokenAuthApi(apiClientConfig);

@@ -51,6 +51,7 @@ export { SuggestedQuizQuestionsApi } from './SuggestedQuizQuestionsApi';
 export { SystemApi } from './SystemApi';
 export { TestCasesApi } from './TestCasesApi';
 export { TestCategoriesApi } from './TestCategoriesApi';
+export { TestCategoryFilesApi } from './TestCategoryFilesApi';
 export { TestCategoryResourcesApi } from './TestCategoryResourcesApi';
 export { TmpScriptApi } from './TmpScriptApi';
 export { TokenAuthApi } from './TokenAuthApi';

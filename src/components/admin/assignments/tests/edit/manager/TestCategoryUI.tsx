@@ -7,6 +7,8 @@ import { File as CodePostFile } from '../../../../../../utils/file';
 import { TestScriptEditor } from '../TestDefinitions/TestScriptEditor';
 import { TestResourceManager } from './TestResourceManager';
 import { LearningObjectivesPanel } from './LearningObjectivesPanel';
+import { TestCaseTable } from './TestCaseTable';
+import { TestFilesManager } from './TestFilesManager';
 import { assignmentsApi, assignmentFilesApi, testCategoriesApi } from '../../../../../../api-client/clients';
 import type { PatchedTestCategory } from '../../../../../../api-client';
 
@@ -23,8 +25,9 @@ export const TestCategoryUI = (props: IProps) => {
   const [script, setScript] = useState(props.category.testScript || '');
   const [targetFileName, setTargetFileName] = useState(props.category.targetFileName || undefined);
   const [assignmentFiles, setAssignmentFiles] = useState<AssignmentFileType[]>([]);
-  // const [helperFiles, setHelperFiles] = useState<number[]>(props.category.helperFiles || []);
   const [isSaving, setIsSaving] = useState(false);
+  // Incremented whenever testCases/testFiles change so TestCaseTable reloads.
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // Sync state if category prop changes (switching categories)
   useEffect(() => {
@@ -32,8 +35,22 @@ export const TestCategoryUI = (props: IProps) => {
     setMaxPoints(props.category.maxPoints || 0);
     setScript(props.category.testScript || '');
     setTargetFileName(props.category.targetFileName || undefined);
-    // setHelperFiles(props.category.helperFiles || []);
   }, [props.category]);
+
+  /** Re-fetch the category so testCases/testFiles/maxPoints are fresh, then
+   *  notify the parent and bump the reload nonce for TestCaseTable. */
+  const refreshCategory = useCallback(async () => {
+    try {
+      const updated = (await testCategoriesApi.retrieve({
+        id: props.category.id,
+      })) as unknown as TestCategoryType;
+      props.onUpdate(updated);
+      setMaxPoints(updated.maxPoints || 0);
+      setReloadNonce((n) => n + 1);
+    } catch {
+      /* non-fatal: user can manually trigger a save */
+    }
+  }, [props.category.id, props.onUpdate]);
 
   // Improved loadFiles that fetches standard list
   const fetchAssignmentFiles = useCallback(async () => {
@@ -79,13 +96,13 @@ export const TestCategoryUI = (props: IProps) => {
         maxPoints,
         testScript: script,
         targetFileName: targetFileName || null,
-        // helperFiles: helperFiles, // Deprecated
       };
-      const updated = (await testCategoriesApi.partialUpdate({
+      await testCategoriesApi.partialUpdate({
         id: props.category.id,
         patchedTestCategory: payload,
-      })) as unknown as TestCategoryType;
-      props.onUpdate(updated);
+      });
+      // Re-fetch so testCases/testFiles/maxPoints reflect the post-save sync.
+      await refreshCategory();
       message.success('Category saved');
     } catch (e) {
       console.error(e);
@@ -132,7 +149,7 @@ export const TestCategoryUI = (props: IProps) => {
     normalizedLanguage === 'r'
       ? 'run_test("Name", 5, "Optional description", function() { ... }, 30)'
       : normalizedLanguage.startsWith('java')
-        ? '@Test(name="Name", points=5)'
+        ? '@Test  (JUnit 5/6 — bare annotation, no points arg needed)'
         : isJsLike
           ? 'test("Name", 5, "Optional description", () => { ... }, 30);'
           : isCppLike
@@ -234,7 +251,31 @@ export const TestCategoryUI = (props: IProps) => {
 
       <Divider style={{ margin: '10px 0' }} />
 
-      {/* Script Editor */}
+      {/* Parsed test list — editable display name, points, hidden */}
+      {props.category.testCases && props.category.testCases.length > 0 && (
+        <>
+          <TestCaseTable
+            testCaseIds={props.category.testCases}
+            reloadNonce={reloadNonce}
+            onPointsChanged={refreshCategory}
+          />
+          <Divider style={{ margin: '10px 0' }} />
+        </>
+      )}
+
+      {/* For Java: multi-file upload backed by TestCategoryFile */}
+      {normalizedLanguage.startsWith('java') && (
+        <>
+          <TestFilesManager
+            categoryId={props.category.id}
+            testFiles={props.category.testFiles || []}
+            onRefresh={refreshCategory}
+          />
+          <Divider style={{ margin: '10px 0' }} />
+        </>
+      )}
+
+      {/* Script Editor (primary for non-Java; optional single-script fallback for Java) */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography.Text strong style={{ marginBottom: 10 }}>
           Test Script

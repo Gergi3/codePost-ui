@@ -48,6 +48,7 @@ apis/SuggestedQuizQuestionsApi.ts
 apis/SystemApi.ts
 apis/TestCasesApi.ts
 apis/TestCategoriesApi.ts
+apis/TestCategoryFilesApi.ts
 apis/TestCategoryResourcesApi.ts
 apis/TmpScriptApi.ts
 apis/TokenAuthApi.ts
@@ -291,6 +292,7 @@ docs/PatchedSuggestedQuizQuestion.md
 docs/PatchedSystemPromptVariant.md
 docs/PatchedTestCase.md
 docs/PatchedTestCategory.md
+docs/PatchedTestCategoryFile.md
 docs/PatchedTestCategoryResource.md
 docs/PatchedUser.md
 docs/PatchedWebhook.md
@@ -426,6 +428,8 @@ docs/TestCaseStudent.md
 docs/TestCasesApi.md
 docs/TestCategoriesApi.md
 docs/TestCategory.md
+docs/TestCategoryFile.md
+docs/TestCategoryFilesApi.md
 docs/TestCategoryResource.md
 docs/TestCategoryResourcesApi.md
 docs/TestExecutionRequest.md
