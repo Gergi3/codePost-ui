@@ -367,6 +367,7 @@ const demoTestCategories: TestCategoryType[] = [
     sortKey: 0,
     targetFileName: 'Loops.py',
     resources: [],
+    testFiles: [],
   },
   {
     id: -2,
@@ -378,6 +379,7 @@ const demoTestCategories: TestCategoryType[] = [
     sortKey: 1,
     targetFileName: 'Recursion.py',
     resources: [],
+    testFiles: [],
   },
   {
     id: -3,
@@ -389,6 +391,7 @@ const demoTestCategories: TestCategoryType[] = [
     sortKey: 2,
     targetFileName: 'analysis_notebook.ipynb',
     resources: [],
+    testFiles: [],
   },
   {
     id: -4,
@@ -400,6 +403,7 @@ const demoTestCategories: TestCategoryType[] = [
     sortKey: 3,
     targetFileName: 'LinkedList.java',
     resources: [],
+    testFiles: [],
   },
 ];
 

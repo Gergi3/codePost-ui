@@ -112,6 +112,18 @@ export const TestCaseTable = (props: IProps) => {
         />
       ),
     },
+    {
+      title: 'Exposed',
+      dataIndex: 'exposed',
+      key: 'exposed',
+      width: 90,
+      render: (_: unknown, row: TestCaseType) => (
+        <Switch
+          defaultChecked={!!row.exposed}
+          onChange={(checked) => patch(row.id, { exposed: checked })}
+        />
+      ),
+    },
   ];
 
   const total = rows.reduce((sum, r) => sum + Number(r.pointsPass ?? 0), 0);
