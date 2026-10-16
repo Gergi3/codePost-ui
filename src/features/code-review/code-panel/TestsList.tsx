@@ -690,7 +690,7 @@ const TestsList: React.FC<TestsListProps> = ({
               </div>
               <div style={{ flexShrink: 0, textAlign: 'right' }}>
                 <Text strong style={{ fontSize: 13, color: allPassed ? '#52c41a' : consoleTheme.text }}>
-                  {pointsEarned} / {pointsTotal} pts
+                  {parseFloat(Math.min(pointsEarned, pointsTotal).toFixed(2))} / {parseFloat(pointsTotal.toFixed(2))} pts
                 </Text>
               </div>
             </div>
@@ -781,14 +781,16 @@ const TestsList: React.FC<TestsListProps> = ({
       : '';
 
     // Compute display score
+    const roundScore = (n: number) => parseFloat(n.toFixed(2));
     let currentScore = 0;
     let maxScore = definition.pointsPass || 0;
     if (parsedResults.length > 0) {
-      currentScore = parsedResults.reduce((acc, curr) => acc + curr.score, 0);
-      maxScore =
+      maxScore = roundScore(
         parsedResults.length === 1
           ? parsedResults[0].maxScore
-          : parsedResults.reduce((acc, curr) => acc + curr.maxScore, 0);
+          : parsedResults.reduce((acc, curr) => acc + curr.maxScore, 0),
+      );
+      currentScore = Math.min(roundScore(parsedResults.reduce((acc, curr) => acc + curr.score, 0)), maxScore);
     } else if (result?.passed) {
       currentScore = definition.pointsPass || 0;
     }
@@ -968,7 +970,7 @@ const TestsList: React.FC<TestsListProps> = ({
                           <Text style={{ fontSize: 12, color: consoleTheme.text }}>{pr.name}</Text>
                         </div>
                         <Text type="secondary" style={{ fontSize: 11, color: mutedText }}>
-                          {pr.score}/{pr.maxScore}
+                          {parseFloat(pr.score.toFixed(2))}/{parseFloat(pr.maxScore.toFixed(2))}
                         </Text>
                       </div>
                     ))}
@@ -1143,21 +1145,27 @@ const TestsList: React.FC<TestsListProps> = ({
     const orphanedIds = Array.from(testCategoryIds).filter((id) => !knownIds.has(id));
 
     const renderCategoryHeader = (category: TestCategory | undefined, title: string, items: TestItem[]) => {
-      const totalPoints = items.reduce((sum, item) => {
+      const totalPoints = parseFloat(Math.min(items.reduce((sum, item) => {
         if (item.hiddenSummary) {
           return sum + item.hiddenSummary.pointsEarned;
         }
         const pr = getParsedResults(item.result)[0];
         return sum + (pr ? pr.score : 0);
-      }, 0);
-
-      const totalMax = items.reduce((sum, item) => {
+      }, 0), items.reduce((sum, item) => {
         if (item.hiddenSummary) {
           return sum + item.hiddenSummary.pointsTotal;
         }
         const pr = getParsedResults(item.result)[0];
         return sum + (pr ? pr.maxScore : item.definition.pointsPass || 0);
-      }, 0);
+      }, 0)).toFixed(2));
+
+      const totalMax = parseFloat(items.reduce((sum, item) => {
+        if (item.hiddenSummary) {
+          return sum + item.hiddenSummary.pointsTotal;
+        }
+        const pr = getParsedResults(item.result)[0];
+        return sum + (pr ? pr.maxScore : item.definition.pointsPass || 0);
+      }, 0).toFixed(2));
 
       // Avoid division by zero
       const percent = totalMax > 0 ? (totalPoints / totalMax) * 100 : 0;
