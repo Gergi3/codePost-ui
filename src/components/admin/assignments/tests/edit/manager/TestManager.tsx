@@ -1,5 +1,5 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button, Empty, Spin, message, Tooltip, Popconfirm, Upload, Space } from 'antd';
 import { PlusOutlined, DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import { testCategoriesApi, testCategoryFilesApi } from '../../../../../../api-client/clients';
@@ -13,6 +13,7 @@ interface IProps {
   assignment: AssignmentType;
   onSave?: () => void;
   helpers?: AssignmentFileType[];
+  language?: string;
 }
 
 export const TestManager = (props: IProps) => {
@@ -20,6 +21,9 @@ export const TestManager = (props: IProps) => {
   const [activeCategoryId, setActiveCategoryId] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [bulkUploading, setBulkUploading] = useState(false);
+  // Collect files across beforeUpload calls (fires once per file), then flush after a tick.
+  const pendingBulkFiles = useRef<RcFile[]>([]);
+  const bulkFlushTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchCategories = useCallback(async () => {
     setLoading(true);
@@ -52,7 +56,7 @@ export const TestManager = (props: IProps) => {
           name: `New Test Category ${categories.length + 1}`,
           assignment: props.assignment.id,
           testScript: '',
-          maxPoints: 10, // Default
+          maxPoints: props.assignment.points, // Default to assignment total
           sortKey: categories.length,
           targetFileName: null,
         },
@@ -66,27 +70,27 @@ export const TestManager = (props: IProps) => {
   };
 
   /**
-   * Bulk-upload: drop N .java files → create ONE category (named after the
-   * first file) with one TestCategoryFile per file. Tests are auto-parsed.
+   * Bulk-upload: drop N .java files → create ONE new category with one
+   * TestCategoryFile per file. Always creates new files (never upserts) so
+   * you can re-upload a whole category by dropping all files at once.
+   * beforeUpload fires once per file — we collect them all then flush after a tick.
    */
-  const handleBulkUpload = useCallback(async (fileList: RcFile[]): Promise<false> => {
-    if (!fileList.length) return false;
+  const flushBulkUpload = useCallback(async () => {
+    const fileList = pendingBulkFiles.current.splice(0);
+    if (!fileList.length) return;
     setBulkUploading(true);
     try {
-      // Create a single category named after the first file (stem without .java).
-      const firstName = fileList[0].name.replace(/\.java$/i, '');
+      const catName = fileList[0].name.replace(/\.java$/i, '');
       const newCat = await testCategoriesApi.create({
         testCategory: {
-          name: firstName,
+          name: catName,
           assignment: props.assignment.id,
           testScript: '',
-          maxPoints: 0,
+          maxPoints: props.assignment.points,
           sortKey: categories.length,
           targetFileName: null,
         },
       });
-
-      // Upload each .java file as a TestCategoryFile.
       for (let i = 0; i < fileList.length; i++) {
         const f = fileList[i];
         const content = await new Promise<string>((resolve, reject) => {
@@ -96,27 +100,26 @@ export const TestManager = (props: IProps) => {
           reader.readAsText(f as unknown as File);
         });
         await testCategoryFilesApi.create({
-          testCategoryFile: {
-            category: newCat.id,
-            name: f.name,
-            content,
-            sortKey: i,
-          },
+          testCategoryFile: { category: newCat.id, name: f.name, content, sortKey: i },
         });
       }
-
-      // Reload the category to pick up parsed testCases/maxPoints.
       const updated = await testCategoriesApi.retrieve({ id: newCat.id });
       setCategories((prev) => [...prev, updated]);
       setActiveCategoryId(updated.id);
-      message.success(`Created "${firstName}" with ${fileList.length} test file${fileList.length !== 1 ? 's' : ''}`);
+      message.success(`Created "${catName}" with ${fileList.length} file${fileList.length !== 1 ? 's' : ''}`);
     } catch {
       message.error('Bulk upload failed');
     } finally {
       setBulkUploading(false);
     }
-    return false;
   }, [categories.length, props.assignment.id]);
+
+  const handleBulkBeforeUpload = useCallback((file: RcFile): false => {
+    pendingBulkFiles.current.push(file);
+    if (bulkFlushTimer.current) clearTimeout(bulkFlushTimer.current);
+    bulkFlushTimer.current = setTimeout(() => flushBulkUpload(), 50);
+    return false;
+  }, [flushBulkUpload]);
 
   const handleDeleteCategory = async (cat: TestCategoryType) => {
     try {
@@ -175,10 +178,7 @@ export const TestManager = (props: IProps) => {
                 multiple
                 accept=".java"
                 showUploadList={false}
-                beforeUpload={(_, list) => {
-                  handleBulkUpload(list as RcFile[]);
-                  return false;
-                }}
+                beforeUpload={handleBulkBeforeUpload}
                 disabled={bulkUploading}
               >
                 <Button
@@ -261,8 +261,8 @@ export const TestManager = (props: IProps) => {
             key={activeCategory.id}
             category={activeCategory}
             assignment={props.assignment}
+            language={props.language ?? ''}
             onUpdate={handleUpdateCategory}
-            helpers={props.helpers}
           />
         ) : (
           <Empty

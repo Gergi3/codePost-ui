@@ -431,7 +431,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
     {
       id: -2,
       testCategory: -1,
@@ -454,7 +454,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
     {
       id: -3,
       testCategory: -1,
@@ -477,7 +477,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
   ],
   [-2]: [
     {
@@ -502,7 +502,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
     {
       id: -5,
       testCategory: -2,
@@ -525,7 +525,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
   ],
   [-3]: [
     {
@@ -550,7 +550,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: true,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
     {
       id: -7,
       testCategory: -3,
@@ -573,7 +573,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: true,
       dataSet: null,
       targetCellId: 'demo-cell-plot',
-    } as TestCaseType,
+    } as unknown as TestCaseType,
   ],
   [-4]: [
     {
@@ -598,7 +598,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
     {
       id: -9,
       testCategory: -4,
@@ -621,7 +621,7 @@ const demoTestCases: TestCasesByCategory = {
       expectPlot: false,
       dataSet: null,
       targetCellId: null,
-    } as TestCaseType,
+    } as unknown as TestCaseType,
   ],
 };
 

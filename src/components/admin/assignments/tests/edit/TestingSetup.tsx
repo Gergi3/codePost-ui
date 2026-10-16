@@ -18,6 +18,7 @@ import type {
   EnvironmentsCreateRequest,
   EnvironmentsPartialUpdateRequest,
 } from '../../../../../api-client/apis/AutograderApi';
+import { BuildTypeEnum, LanguageEnum } from '../../../../../api-client';
 
 import { AssignmentType, SubmissionInfoType, UserType } from '../../../../../types/models';
 
@@ -69,7 +70,37 @@ export const TestingSetup = (props: IProps) => {
     const fetchData = async () => {
       setLoading(true);
       const currEnv = await fetchEnvironment(props.currentAssignment);
-      setEnv(currEnv);
+
+      // If no environment exists yet, create a default one immediately so
+      // EnvironmentSpecs renders without waiting for a file upload to trigger
+      // the backend auto-detect signal.
+      if (!currEnv) {
+        try {
+          const defaultEnv = await autograderApi.environmentsCreate({
+            environment: {
+              language: LanguageEnum.Python312,
+              dockerRunInstructions: [],
+              dockerfile: '',
+              requirements: '',
+              autoDetect: true,
+              buildType: BuildTypeEnum.Default,
+              assignment: props.currentAssignment.id,
+              compileText: '',
+              allowNetworkAccess: false,
+              maxStudentTestRuns: null,
+              maxExposedFailedTests: null,
+              envVars: {},
+            },
+          });
+          props.updateAssignment(props.currentAssignment.id, 'environment', defaultEnv.id);
+          setEnv(defaultEnv);
+        } catch (e) {
+          console.error('Failed to auto-create environment', e);
+          setEnv(undefined);
+        }
+      } else {
+        setEnv(currEnv);
+      }
 
       // Fetch helper files
       // Fetch helper files
@@ -225,7 +256,7 @@ export const TestingSetup = (props: IProps) => {
     items.push({
       key: 'tests',
       label: 'Tests',
-      children: <TestManager assignment={props.currentAssignment} helpers={helperFiles} />,
+      children: <TestManager assignment={props.currentAssignment} helpers={helperFiles} language={env?.language ?? ''} />,
     });
   }
 

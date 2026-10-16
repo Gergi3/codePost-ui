@@ -220,7 +220,7 @@ const getInitialState = (): ICodeConsoleState => ({
   showCustomCommentExplorer: false,
   showHelpModal: false,
   panelType: PANEL_TYPE.FILE,
-  activeSiderKey: 'file-menu',
+  activeSiderKey: 'tests-menu',
   hideGrades: false,
   executionResults: {},
   aiEnabled: false,

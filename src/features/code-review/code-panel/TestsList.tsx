@@ -74,6 +74,8 @@ interface ParsedTestResult {
   error?: string;
   description?: string;
   message?: string;
+  /** 'passed' | 'failed' (assertion) | 'error' (unexpected runtime exception) */
+  status?: string;
 }
 
 interface SyntaxInsight {
@@ -83,6 +85,12 @@ interface SyntaxInsight {
 }
 
 type TestOutcome = 'not-run' | 'passed' | 'partial' | 'failed' | 'error';
+
+// Student-facing message for a compile failure. Mirrors STUDENT_COMPILE_FAILURE_MESSAGE
+// in the API (core/views/submission.py); the backend is authoritative, this keeps the
+// wording consistent in the one place the UI must still render it.
+const STUDENT_COMPILE_FAILURE_MESSAGE =
+  "Your code didn't compile. Fix the compilation errors shown in your files and resubmit.";
 
 const SYNTAX_ERROR_PATTERNS: RegExp[] = [
   /\bSyntaxError\b/i,
@@ -148,6 +156,16 @@ const isSyntaxInvalidBoilerplateMessage = (message?: string): boolean => {
   return /student code syntax was invalid|fix syntax errors before running tests/i.test(message);
 };
 
+// Assertion failures arrive as `<FullyQualifiedExceptionName>: <message>` (e.g.
+// "org.opentest4j.AssertionFailedError: expected: <42> but was: <0>"). Students only need
+// the message, so strip a leading Java exception-class-name prefix. We only strip when the
+// prefix actually looks like an exception class (dotted identifier ending Error/Exception),
+// so plain messages are left untouched. UI-only — the stored value keeps the full text.
+const stripExceptionClassPrefix = (text?: string): string => {
+  if (!text) return '';
+  return text.replace(/^(?:[A-Za-z_$][\w$]*\.)*[A-Za-z_$][\w$]*(?:Error|Exception):\s*/, '').trim() || text.trim();
+};
+
 const extractSyntaxAdvisoryDetail = (result?: SubmissionTest): string => {
   if (!result?.logs) return '';
 
@@ -184,6 +202,7 @@ function parseTestLogs(logs: string): ParsedTestResult[] {
         error: data.error,
         message: data.message,
         description: data.description,
+        status: data.status,
       });
     } catch {
       // JSON parse failed, continue to fallback
@@ -213,6 +232,7 @@ function parseTestLogs(logs: string): ParsedTestResult[] {
         error: data.error as string | undefined,
         message: data.message as string | undefined,
         description: typeof data.description === 'string' ? data.description : undefined,
+        status: typeof data.status === 'string' ? data.status : undefined,
       }));
     }
   } catch {
@@ -472,6 +492,7 @@ const TestsList: React.FC<TestsListProps> = ({
         error: r.error as string | undefined,
         message: r.message as string | undefined,
         description: r.description as string | undefined,
+        status: typeof r.status === 'string' ? r.status : undefined,
       }));
     }
 
@@ -751,8 +772,12 @@ const TestsList: React.FC<TestsListProps> = ({
     const showTupleMessage =
       !!primaryParsedResult?.message &&
       !(syntaxInsight.hasSyntaxIssue && isSyntaxInvalidBoilerplateMessage(primaryParsedResult.message));
+    // Students see a generic compile message (the backend already strips raw compiler
+    // output); graders see the full syntax/compile detail.
     const syntaxDetailText = syntaxInsight.hasSyntaxIssue
-      ? (primaryParsedResult?.error || result?.logs || primaryParsedResult?.message || '').trim()
+      ? isStudent
+        ? STUDENT_COMPILE_FAILURE_MESSAGE
+        : (primaryParsedResult?.error || result?.logs || primaryParsedResult?.message || '').trim()
       : '';
 
     // Compute display score
@@ -971,7 +996,15 @@ const TestsList: React.FC<TestsListProps> = ({
                     whiteSpace: 'pre-wrap',
                   }}
                 >
-                  {primaryParsedResult.error}
+                  {/* An unexpected runtime exception (status 'error') is distinct from an
+                      assertion failure (status 'failed'); label it so students know their
+                      code threw rather than returned a wrong value. Assertion failures show
+                      only the message (exception class name stripped). */}
+                  {primaryParsedResult.status === 'error'
+                    ? `Unexpected exception thrown: ${primaryParsedResult.error}`
+                    : primaryParsedResult.status === 'failed'
+                      ? stripExceptionClassPrefix(primaryParsedResult.error)
+                      : primaryParsedResult.error}
                 </div>
               )}
 
@@ -1016,6 +1049,11 @@ const TestsList: React.FC<TestsListProps> = ({
   };
 
   const renderCategoryLogs = (items: TestItem[], hasScriptError = false) => {
+    // The backend (submissions/{id}/testResults) is the authoritative guard: it strips raw
+    // execution logs from student payloads and replaces compile failures with a generic
+    // message. This is a cosmetic belt-and-suspenders — don't render a redundant
+    // "Execution Logs" panel for students (and defend against any legacy/cached row).
+    if (isStudent) return null;
     const itemsWithLogs = items.filter((item) => item.result?.logs && !(item.definition.hidden && isStudent));
     if (itemsWithLogs.length === 0) return null;
 

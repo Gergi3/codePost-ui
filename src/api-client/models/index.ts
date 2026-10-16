@@ -10618,6 +10618,12 @@ export interface PatchedTestCase {
    */
   functionName?: string | null;
   /**
+   * The test class / source file (without extension) this test came from. Disambiguates identical functionNames across files in one category.
+   * @type {string}
+   * @memberof PatchedTestCase
+   */
+  readonly className?: string;
+  /**
    * Execution timeout in seconds for this test.
    * @type {number}
    * @memberof PatchedTestCase
@@ -15606,6 +15612,12 @@ export interface TestCase {
    * @memberof TestCase
    */
   functionName?: string | null;
+  /**
+   * The test class / source file (without extension) this test came from. Disambiguates identical functionNames across files in one category.
+   * @type {string}
+   * @memberof TestCase
+   */
+  readonly className: string;
   /**
    * Execution timeout in seconds for this test.
    * @type {number}

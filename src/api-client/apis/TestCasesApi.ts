@@ -17,7 +17,7 @@ import * as runtime from '../runtime';
 import type { PatchedTestCase, TestCase, TestCaseRunRequest, TestCaseRunResponse } from '../models/index';
 
 export interface CreateRequest {
-  testCase: Omit<TestCase, 'id' | 'modified' | 'instances'>;
+  testCase: Omit<TestCase, 'id' | 'modified' | 'instances' | 'className'>;
 }
 
 export interface DestroyRequest {
@@ -26,7 +26,7 @@ export interface DestroyRequest {
 
 export interface PartialUpdateRequest {
   id: number;
-  patchedTestCase?: Omit<PatchedTestCase, 'id' | 'modified' | 'instances'>;
+  patchedTestCase?: Omit<PatchedTestCase, 'id' | 'modified' | 'instances' | 'className'>;
 }
 
 export interface RetrieveRequest {
@@ -40,7 +40,7 @@ export interface RunCreateRequest {
 
 export interface UpdateRequest {
   id: number;
-  testCase: Omit<TestCase, 'id' | 'modified' | 'instances'>;
+  testCase: Omit<TestCase, 'id' | 'modified' | 'instances' | 'className'>;
 }
 
 /**

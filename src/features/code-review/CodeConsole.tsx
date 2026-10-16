@@ -485,7 +485,11 @@ const CodeConsole: React.FC<ICodeConsoleProps> = (props) => {
           <StandardConsoleLayout
             consoleTypes={['grade']}
             activePanel={(() => {
-              const idx = sider.findIndex((s) => s.key === activeSiderKey);
+              const find = (key: string | null) => sider.findIndex((s) => s.key === key);
+              let idx = find(activeSiderKey);
+              // Default is 'tests-menu'; when the Tests panel isn't visible (e.g. files-only
+              // mode or no test-view capability) fall back to Files rather than collapsing.
+              if (idx === -1) idx = find('file-menu');
               return idx !== -1 ? idx : null;
             })()}
             onActivePanelChange={(index) => {

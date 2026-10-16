@@ -9,6 +9,7 @@ COPY package.json package-lock.json ./
 
 # Install dependencies with clean install for reproducibility
 # --legacy-peer-deps matches the repo's .npmrc (peer conflicts: tiptap/lowlight, @monaco-editor/react RC)
+RUN apk add --no-cache python3 make g++
 RUN npm ci --legacy-peer-deps
 
 # Copy source code

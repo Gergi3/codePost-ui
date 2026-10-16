@@ -53,6 +53,10 @@ const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
   const rightActions: React.ReactElement[] = [];
 
   const isDiffMode = useCodeConsoleStore((s) => s.isDiffMode);
+  // Hide code-execution affordances from students (real students and instructors in
+  // "view as student"). Students can't meaningfully run code — they'd only ever replay a
+  // staff-cached result — so the Run button is removed from their files overview.
+  const isStudent = useCodeConsoleStore((s) => s.isStudent);
   const currentSubmissionId = useCodeConsoleStore((s) => s.submission?.id ?? s.readOnlySubmission?.id);
   const selectedSubmissionFile = selectedFile as SubmissionFile | undefined;
   const hasSavedInstructorEdit = selectedSubmissionFile?.edit?.data !== undefined;
@@ -174,7 +178,7 @@ const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
     const ext = selectedFile.extension.toLowerCase().replace(/^\./, '');
 
     if (fileTypeRegistry.isExecutableExtension(ext)) {
-      if (canEditSubmission) {
+      if (!isStudent && canEditSubmission) {
         leftActions.push(
           <Tooltip key="edit-toggle" title={isEditMode ? 'Exit edit mode' : 'Edit file'} placement="bottom">
             <Button
@@ -224,7 +228,7 @@ const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
         }
       }
 
-      if (hasSavedInstructorEdit || (canEditSubmission && isEditMode)) {
+      if (!isStudent && (hasSavedInstructorEdit || (canEditSubmission && isEditMode))) {
         leftActions.push(
           <Tooltip key="diff-toggle" title={isDiffMode ? 'Hide changes' : 'Show changes'} placement="bottom">
             <Button
@@ -254,41 +258,43 @@ const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
         leftActions.push(tbDivider('div-edit'));
       }
 
-      // Execute button
-      leftActions.push(
-        <ExecuteFileButton
-          key="execute-file-button"
-          file={selectedFile}
-          disabled={false}
-          onExecutionComplete={onExecutionComplete}
-          canWrite={submissionCaps.run_code === true}
-          codeOverride={
-            isEditMode && selectedFile
-              ? useCodeConsoleStore.getState().temporaryFileContent[selectedFile.id]
-              : undefined
-          }
-        />,
-      );
-
-      // Clear outputs — right side
-      const executionResult = executionResults[selectedFile.id];
-      const selectedFileType = fileTypeRegistry.detect(selectedFile);
-      if (selectedFileType.capabilities.clearableOutputs && executionResult) {
-        rightActions.push(
-          <Tooltip key="execution-clear-button" title="Clear execution outputs" placement="bottom">
-            <Button
-              type="text"
-              size="small"
-              icon={<CloseOutlined style={{ fontSize: 13 }} />}
-              onClick={onClearOutputs}
-              style={{
-                ...tbBtnBase,
-                padding: '0 6px',
-                color: isDark ? '#f5827a' : '#ff4d4f',
-              }}
-            />
-          </Tooltip>,
+      // Execute button — hidden for student views (see isStudent note above)
+      if (!isStudent) {
+        leftActions.push(
+          <ExecuteFileButton
+            key="execute-file-button"
+            file={selectedFile}
+            disabled={false}
+            onExecutionComplete={onExecutionComplete}
+            canWrite={submissionCaps.run_code === true}
+            codeOverride={
+              isEditMode && selectedFile
+                ? useCodeConsoleStore.getState().temporaryFileContent[selectedFile.id]
+                : undefined
+            }
+          />,
         );
+
+        // Clear outputs — right side
+        const executionResult = executionResults[selectedFile.id];
+        const selectedFileType = fileTypeRegistry.detect(selectedFile);
+        if (selectedFileType.capabilities.clearableOutputs && executionResult) {
+          rightActions.push(
+            <Tooltip key="execution-clear-button" title="Clear execution outputs" placement="bottom">
+              <Button
+                type="text"
+                size="small"
+                icon={<CloseOutlined style={{ fontSize: 13 }} />}
+                onClick={onClearOutputs}
+                style={{
+                  ...tbBtnBase,
+                  padding: '0 6px',
+                  color: isDark ? '#f5827a' : '#ff4d4f',
+                }}
+              />
+            </Tooltip>,
+          );
+        }
       }
     }
 

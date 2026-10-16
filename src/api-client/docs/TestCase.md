@@ -21,6 +21,7 @@
 | `targetCellId`       | string                                        |
 | `rubricItem`         | number                                        |
 | `functionName`       | string                                        |
+| `className`          | string                                        |
 | `timeout`            | number                                        |
 | `hidden`             | boolean                                       |
 | `learningObjectives` | Array&lt;number&gt;                           |

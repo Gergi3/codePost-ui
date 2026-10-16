@@ -5,6 +5,7 @@
 
 /* react imports */
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router';
 
 import {
   CheckCircleOutlined,
@@ -109,6 +110,8 @@ export const EnvironmentSpecs = (props: IProps) => {
     envVars,
     setEnvVars,
   } = useEnvironmentSpecs(props, props.env?.language ?? LanguageEnum.Python312);
+
+  const location = useLocation();
 
   // UI State (local to component)
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -228,9 +231,10 @@ export const EnvironmentSpecs = (props: IProps) => {
     }
   }, [previewVisible, fetchPreview]);
 
-  // Keyboard shortcut for Save (Ctrl+S / Cmd+S)
+  // Keyboard shortcut for Save (Ctrl+S / Cmd+S) — only when on the environment tab
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!location.pathname.includes('/edit/environment')) return;
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         message.loading({ content: 'Saving...', key: 'save_shortcut' });
@@ -242,7 +246,7 @@ export const EnvironmentSpecs = (props: IProps) => {
     // Use capture phase to intercept Ctrl+S before Monaco Editor consumes it
     window.addEventListener('keydown', handleKeyDown, { capture: true });
     return () => window.removeEventListener('keydown', handleKeyDown, { capture: true });
-  }, [saveEnv]);
+  }, [saveEnv, location.pathname]);
 
   const saveCompileText = async (newText: string) => {
     await props.updateCompileText(newText);
