@@ -514,7 +514,7 @@ export function useConsoleLayout(props: UseConsoleLayoutProps): ConsoleLayout | 
         updateFeedback={props.updateFeedback.bind(null, selectedFile.id)}
         studentFeedbackOn={assignment.commentFeedback ?? false}
         hideAuthor={hideAuthor}
-        additiveGrading={false}
+        additiveGrading={assignment.additiveGrading ?? false}
         rubricCategories={props.rubricCategories}
         {...(!props.inDemoMode
           ? {

@@ -136,22 +136,23 @@ export const TestFilesManager = (props: IProps) => {
     }, 500);
   };
 
+  const distributePoints = (targetMax: number, cases: typeof testCases) => {
+    if (cases.length === 0) return;
+    const n = cases.length;
+    const share = Math.floor((targetMax / n) * 100) / 100;
+    const remainder = parseFloat((targetMax - share * (n - 1)).toFixed(2));
+    cases.forEach((tc, i) => {
+      patchTestCase(tc.id, { pointsPass: i === n - 1 ? remainder : share }, false);
+    });
+    props.onPointsChanged?.();
+  };
+
   const handleMaxPointsChange = (newMax: number) => {
     if (testCases.length === 0) return;
-    // Debounce: wait until user stops typing before redistributing.
     if (maxPtsDebounce.current) clearTimeout(maxPtsDebounce.current);
     maxPtsDebounce.current = setTimeout(() => {
       maxPtsDebounce.current = null;
-      const n = testCases.length;
-      const share = Math.round((newMax / n) * 100) / 100;
-      // Capture ids before any async re-render.
-      const ids = testCases.map((tc) => tc.id);
-      // Patch each test with isPoints=false so we don't fire N refreshCategory calls.
-      ids.forEach((id) => {
-        patchTestCase(id, { pointsPass: share }, false);
-      });
-      // Single refresh after all patches are queued.
-      props.onPointsChanged?.();
+      distributePoints(newMax, testCases);
     }, 600);
   };
 

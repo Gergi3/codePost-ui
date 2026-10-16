@@ -95,7 +95,8 @@ export const TestCaseTable = (props: IProps) => {
         <InputNumber
           min={0}
           step={1}
-          defaultValue={Number(row.pointsPass ?? 1)}
+          precision={2}
+          defaultValue={parseFloat(Number(row.pointsPass ?? 1).toFixed(2))}
           onChange={(val) => patch(row.id, { pointsPass: Number(val ?? 0) }, true)}
         />
       ),
@@ -126,7 +127,7 @@ export const TestCaseTable = (props: IProps) => {
     },
   ];
 
-  const total = rows.reduce((sum, r) => sum + Number(r.pointsPass ?? 0), 0);
+  const total = parseFloat(rows.reduce((sum, r) => sum + Number(r.pointsPass ?? 0), 0).toFixed(2));
 
   return (
     <div>
