@@ -139,10 +139,11 @@ export const TestFilesManager = (props: IProps) => {
   const distributePoints = (targetMax: number, cases: typeof testCases) => {
     if (cases.length === 0) return;
     const n = cases.length;
-    const share = Math.floor((targetMax / n) * 100) / 100;
-    const remainder = parseFloat((targetMax - share * (n - 1)).toFixed(2));
+    const maxCents = Math.round(targetMax * 100);
+    const shareCents = Math.floor(maxCents / n);
+    const lastCents = maxCents - shareCents * (n - 1);
     cases.forEach((tc, i) => {
-      patchTestCase(tc.id, { pointsPass: i === n - 1 ? remainder : share }, false);
+      patchTestCase(tc.id, { pointsPass: i === n - 1 ? lastCents / 100 : shareCents / 100 }, false);
     });
     props.onPointsChanged?.();
   };
@@ -150,9 +151,10 @@ export const TestFilesManager = (props: IProps) => {
   const handleMaxPointsChange = (newMax: number) => {
     if (testCases.length === 0) return;
     if (maxPtsDebounce.current) clearTimeout(maxPtsDebounce.current);
+    const snapshot = testCases;
     maxPtsDebounce.current = setTimeout(() => {
       maxPtsDebounce.current = null;
-      distributePoints(newMax, testCases);
+      distributePoints(newMax, snapshot);
     }, 600);
   };
 
