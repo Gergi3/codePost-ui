@@ -819,6 +819,8 @@ const StudentComponent: React.FC<StudentProps> = (props) => {
   const openHome = () => {
     if (localStorage.getItem('source') === 'codePost') {
       window.open(CLIENT_URL, '_blank');
+    } else {
+      navigate('/student');
     }
   };
 

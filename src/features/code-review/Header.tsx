@@ -72,12 +72,6 @@ import { usePermissionsStore, selectCaps } from '../../stores/usePermissionsStor
 
 import { encodeForLink } from '../../components/core/URLutils';
 
-declare global {
-  interface Window {
-    Intercom?: (command: string) => void;
-  }
-}
-
 /**********************************************************************************************************************/
 
 interface IMagnifierProps {
@@ -852,6 +846,11 @@ interface IHeaderMenuProps {
 export const HeaderMenu = (props: IHeaderMenuProps) => {
   const { consoleTheme } = React.useContext(ConsoleThemeContext);
 
+  // Students go straight to their dashboard; staff keep "/" (App resolves it to
+  // /grader or /admin). Avoids the "/" → /student redirect hop that visibly
+  // bounces in the lazy-loaded code console.
+  const isStudent = useCodeConsoleStore((s) => s.isStudent);
+
   // Read capabilities from the store, falling back to old prop-based logic
   const courseId = props.course?.id;
   const capClaimSubmissions = usePermissionsStore((s) =>
@@ -867,24 +866,11 @@ export const HeaderMenu = (props: IHeaderMenuProps) => {
   // Only register claim submission hotkey for non-students
   useHotkeys(U_KEY, canClaimSubmissions ? props.claimSubmission : () => {}, !!canClaimSubmissions);
 
-  const groupStyle = {
-    padding: '5px 20px',
-    lineHeight: '40px',
-    fontSize: '14px',
-    color: '#8d9298',
-    background: '#f4f4f4',
-    fontWeight: 600,
-    cursor: 'default',
-  };
   const itemStyle = {
     padding: '5px 20px',
     lineHeight: '35px',
     fontSize: '14px',
     cursor: 'pointer',
-  };
-
-  const openIntercom = () => {
-    window.Intercom?.('show');
   };
 
   const menuItems = [
@@ -902,12 +888,6 @@ export const HeaderMenu = (props: IHeaderMenuProps) => {
           },
         ]
       : []),
-    {
-      key: 'setting:1',
-      label: 'Code Review Console',
-      style: groupStyle,
-      className: 'header-menu',
-    },
     ...(canClaimSubmissions
       ? [
           {
@@ -943,21 +923,8 @@ export const HeaderMenu = (props: IHeaderMenuProps) => {
       : []),
 
     {
-      key: 'setting:3',
-      label: 'Help! (talk to a human from codePost)',
-      style: itemStyle,
-      className: 'header-menu',
-      onClick: openIntercom,
-    },
-    {
-      key: 'setting:4',
-      label: 'Other',
-      style: groupStyle,
-      className: 'header-menu',
-    },
-    {
       key: 'setting:5',
-      label: <Link to="/">Home</Link>,
+      label: <Link to={isStudent ? '/student' : '/'}>Home</Link>,
       style: itemStyle,
       className: 'header-menu',
     },

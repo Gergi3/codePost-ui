@@ -56,6 +56,9 @@ interface TestsListProps {
   fileOverrides?: Record<number, string>; // Map of file ID -> temporary content
   demoMode?: boolean;
   initialResults?: SubmissionTest[];
+  // When provided, forces the run-tests UI (Run All + per-test run) on/off regardless of
+  // store capabilities. Used by the student submit dialog to keep that view read-only.
+  canRunTestsOverride?: boolean;
 }
 
 interface TestItem {
@@ -321,6 +324,7 @@ const TestsList: React.FC<TestsListProps> = ({
   fileOverrides,
   demoMode = false,
   initialResults,
+  canRunTestsOverride,
 }) => {
   const { consoleTheme } = useContext(ConsoleThemeContext);
   const isDarkTheme = consoleThemes.dark === consoleTheme;
@@ -342,7 +346,7 @@ const TestsList: React.FC<TestsListProps> = ({
   const capRunAutograder = usePermissionsStore((s) =>
     submissionId ? selectCaps(s, `submission:${submissionId}`).run_autograder : undefined,
   );
-  const canRunTests = capRunAutograder ?? !isStudent;
+  const canRunTests = canRunTestsOverride ?? (capRunAutograder ?? !isStudent);
 
   const [learningObjectives, setLearningObjectives] = useState<LearningObjectiveSummary[]>([]);
 

@@ -26,7 +26,6 @@ import {
 import {
   Alert,
   Button,
-  Checkbox,
   Divider,
   message,
   Modal,
@@ -62,7 +61,6 @@ import {
 import CPTooltip from '../../../../core/CPTooltip';
 import { tooltips } from '../../../../core/tooltips';
 import { slack } from '../../../../core/slack';
-import { StudentTestCasesByCategory } from '../../../../core/testFetchUtils';
 import { encodeForLink } from '../../../../core/URLutils';
 import { CodePostDate } from '../../../../utils/CodepostDate';
 import { dueDatePassed } from '../../../../utils/DateUtils';
@@ -196,7 +194,7 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
   const [submission, setSubmission] = useState<StudentSubmissionType | SubmissionInfoType | undefined>(undefined);
   const [loadingTests, setLoadingTests] = useState<boolean>(false);
   const [fileTemplates, setFileTemplates] = useState<AssignmentFileType[]>([]);
-  const [sendMeAConfirmationEmail, setSendMeAConfirmationEmail] = useState<boolean>(
+  const [sendMeAConfirmationEmail] = useState<boolean>(
     LOCAL_SETTINGS.sendMeAConfirmationEmail.getter(),
   );
   const [submissionTests, setSubmissionTests] = useState<SubmissionTestType[]>([]);
@@ -261,95 +259,62 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
     setFileTemplates(visibleTemplates);
   }, []);
 
-  const loadTests = useCallback(
-    async (assignmentId: number, assignment?: Assignment | AssignmentStudentType) => {
-      if (isStudent) {
-        const assgn = assignment ?? selectedAssignment;
-        // Only load tests when student test runs are configured or live feedback is on
-        const hasStudentTestRuns = assgn?.maxStudentTestRuns != null && assgn.maxStudentTestRuns > 0;
-        const isLiveFeedback = assgn?.liveFeedbackMode ?? false;
-        if (!hasStudentTestRuns && !isLiveFeedback) {
-          return;
+  // Single source of truth for the student Tests tab: fetches the student test
+  // definitions once and (when a submission exists and feedback is open) merges in
+  // that submission's results, setting both testCategories and testCasesState from
+  // the SAME response so tab visibility can never disagree with tab contents. No
+  // client-side `exposed` filter — the backend already scopes which cases a student
+  // may see (live/finalized → all; otherwise exposed-only), so filtering again here
+  // would wrongly hide cases the server intentionally returned.
+  const loadStudentTests = useCallback(
+    async (
+      assignment: Assignment | AssignmentStudentType | undefined,
+      sub?: StudentSubmissionType | SubmissionInfoType,
+    ) => {
+      if (!isStudent || !assignment) return;
+
+      // Only load tests when student test runs are configured or live feedback is on.
+      const hasStudentTestRuns = assignment.maxStudentTestRuns != null && assignment.maxStudentTestRuns > 0;
+      const isLiveFeedback = assignment.feedbackStatus === 'live';
+      if (!hasStudentTestRuns && !isLiveFeedback) return;
+
+      setLoadingTests(true);
+      try {
+        const { testCases, testCategories: fetchedCategories } = await assignmentsApi.studentTestsRetrieve({
+          id: assignment.id,
+        });
+
+        // Mirror the API's testResults gate: live shows immediately; released and
+        // per-student require the submission to be finalized.
+        const fb = assignment.feedbackStatus;
+        const canSeeResults =
+          fb === 'live' || ((fb === 'released' || fb === 'per_student') && !!sub?.isFinalized);
+
+        let resultMap = new Map<number, SubmissionTestType>();
+        if (sub && canSeeResults) {
+          const testResults = await submissionsApi.testResultsRetrieve({ id: sub.id });
+          const latestTests = getLatestSubmissionTests(testResults.submissionTests || []);
+          resultMap = new Map(latestTests.map((t): [number, SubmissionTestType] => [t.testCase, t]));
         }
 
-        setLoadingTests(true);
+        const normalized = testCases.map((test) => normalizeStudentTestCase(test, resultMap.get(test.id)));
 
-        // Fetch categories and initial test cases
-        const { testCases: fetchedTestCases, testCategories: fetchedCategories } =
-          await assignmentsApi.studentTestsRetrieve({ id: assignmentId });
-
-        const caseObj: StudentTestCasesByCategory = {};
-        const exposedTestCases = fetchedTestCases
-          .filter((t) => t.exposed)
-          .map((test) => normalizeStudentTestCase(test));
-        fetchedCategories.forEach((category) => {
-          caseObj[category.id] = [];
-        });
-        exposedTestCases.forEach((testCase) => {
-          caseObj[testCase.testCategory] = [...caseObj[testCase.testCategory], testCase];
-        });
         setTestCategories(fetchedCategories);
-        setTestCasesState(exposedTestCases);
+        setTestCasesState(normalized);
+      } catch (e) {
+        console.error(e);
+      } finally {
         setLoadingTests(false);
       }
     },
-    [isStudent, normalizeStudentTestCase, selectedAssignment],
+    [isStudent, normalizeStudentTestCase],
   );
 
-  // Update student tests (merged with results) when submission or assignment changes
+  // Load (and, once a submission exists, result-merge) the student Tests tab whenever
+  // the selected assignment or submission changes. Single fetch path — see loadStudentTests.
   useEffect(() => {
-    const updateStudentTests = async () => {
-      if (!isStudent || !selectedAssignment) return;
-
-      // Only fetch test data when student test runs are configured or live feedback is on
-      const hasStudentTestRuns =
-        selectedAssignment.maxStudentTestRuns != null && selectedAssignment.maxStudentTestRuns > 0;
-      const isLiveFeedback = selectedAssignment.feedbackStatus === 'live';
-      if (!hasStudentTestRuns && !isLiveFeedback) return;
-
-      if (submission) {
-        try {
-          const studentTests = await assignmentsApi.studentTestsRetrieve({ id: selectedAssignment.id });
-
-          // Mirror the API's testResults gate: live shows immediately; released and
-          // per-student require the submission to be finalized.
-          const fb = selectedAssignment.feedbackStatus;
-          const canSeeResults =
-            fb === 'live' || ((fb === 'released' || fb === 'per_student') && !!submission.isFinalized);
-
-          if (canSeeResults) {
-            const testResults = await submissionsApi.testResultsRetrieve({
-              id: submission.id,
-            });
-
-            const latestTests = getLatestSubmissionTests(testResults.submissionTests || []);
-            const resultMap = new Map(latestTests.map((t) => [t.testCase, t]));
-
-            const testsWithResults = studentTests.testCases.map((test) => {
-              const result = resultMap.get(test.id);
-              return normalizeStudentTestCase(test, result);
-            });
-            setTestCasesState(testsWithResults);
-          } else {
-            // Show test definitions without results
-            setTestCasesState(studentTests.testCases.map((test) => normalizeStudentTestCase(test)));
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        // No submission yet, just show tests without results
-        try {
-          const studentTests = await assignmentsApi.studentTestsRetrieve({ id: selectedAssignment.id });
-          setTestCasesState(studentTests.testCases.map((test) => normalizeStudentTestCase(test)));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    };
-
-    updateStudentTests();
-  }, [submission, selectedAssignment, isStudent, normalizeStudentTestCase]);
+    loadStudentTests(selectedAssignment, submission);
+  }, [selectedAssignment, submission, loadStudentTests]);
 
   const loadTestResults = useCallback(
     async (sub: StudentSubmissionType | SubmissionInfoType | undefined, _loadLogs: boolean) => {
@@ -430,7 +395,8 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
 
       if (propsSelectedAssignment) {
         loadTemplates(propsSelectedAssignment);
-        loadTests(propsSelectedAssignment.id, propsSelectedAssignment);
+        // Student tests load via the loadStudentTests effect, keyed off selectedAssignment
+        // (set just above) + submission — no direct call needed here.
 
         if (propsSelectedStudents.length > 0) {
           let primaryStudent: string | null = null;
@@ -465,7 +431,6 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
     propsSelectedStudents,
     submissions,
     loadTemplates,
-    loadTests,
     loadTestResults,
   ]);
 
@@ -586,14 +551,6 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
 
   const closeLateSubmissionModal = useCallback(() => {
     setLateSubmissionModalVisible(false);
-  }, []);
-
-  const toggleSendMeAConfirmationEmail = useCallback(() => {
-    setSendMeAConfirmationEmail((prev) => {
-      const toggled = !prev;
-      LOCAL_SETTINGS.sendMeAConfirmationEmail.setter(toggled);
-      return toggled;
-    });
   }, []);
 
   /********************************************************************************************************/
@@ -1148,18 +1105,6 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
             !hideDueDate ? (
               <Tag color="volcano">Due Date Passed</Tag>
             ) : null}
-            <Checkbox checked={sendMeAConfirmationEmail} onChange={toggleSendMeAConfirmationEmail}>
-              Send me email confirmation
-            </Checkbox>
-            <CPTooltip
-              title={
-                submission && submission.students && submission.students.length > 1
-                  ? 'If checked, codePost will send you and your partners an email confirming a successful submission.'
-                  : 'If checked, codePost will send you an email confirming a successful submission.'
-              }
-              infoIcon={true}
-            />
-            &nbsp; &nbsp;
           </span>
         );
       }
@@ -1357,7 +1302,11 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
           {showTestsTab && (
             <Tabs.TabPane tab="Tests" key="3">
               <div style={{ minHeight: MIN_TEST_HEIGHT, height: 'calc(100vh - 400px)' }}>
-                <TestsList submissionId={submission?.id || 0} tests={testCasesState as unknown as TestCase[]} />
+                <TestsList
+                  submissionId={submission?.id || 0}
+                  tests={testCasesState as unknown as TestCase[]}
+                  canRunTestsOverride={isStudent ? false : undefined}
+                />
               </div>
             </Tabs.TabPane>
           )}

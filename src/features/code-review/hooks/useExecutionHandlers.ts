@@ -79,6 +79,11 @@ export function useExecutionHandlers({ setState, lastCursorRef }: UseExecutionHa
 
   const handleScrolledToComment = React.useCallback(() => {
     const currentQuery = queryString.parse(location.search);
+    // Nothing to strip → do NOT navigate. A bare `navigate({search}, {replace})` here
+    // resolves relative to this console route and would clobber an in-progress
+    // navigation away from the submission (e.g. clicking Home → /student), yanking the
+    // user back to /code/<id>. Only act when there's actually a `comment` param to remove.
+    if (currentQuery.comment === undefined) return;
     delete currentQuery.comment;
     navigate({ search: queryString.stringify(currentQuery) }, { replace: true });
   }, [location.search, navigate]);
