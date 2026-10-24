@@ -5715,7 +5715,7 @@ export interface GradebookAssignmentCell {
    */
   assignment: number;
   /**
-   * The finalized grade; null until finalized.
+   * The current grade; null until the submission is graded.
    * @type {number}
    * @memberof GradebookAssignmentCell
    */
@@ -5732,6 +5732,24 @@ export interface GradebookAssignmentCell {
    * @memberof GradebookAssignmentCell
    */
   isFinalized: boolean;
+  /**
+   * Id of the best submission; null when no submission.
+   * @type {number}
+   * @memberof GradebookAssignmentCell
+   */
+  submissionId: number | null;
+  /**
+   * Highest grade ever recorded for this submission.
+   * @type {number}
+   * @memberof GradebookAssignmentCell
+   */
+  personalBest: number | null;
+  /**
+   * Earliest timestamp when the personal-best grade was reached.
+   * @type {string}
+   * @memberof GradebookAssignmentCell
+   */
+  firstMaxAt: string | null;
 }
 /**
  *
@@ -5887,6 +5905,12 @@ export interface GradebookRow {
    * @memberof GradebookRow
    */
   percent: number | null;
+  /**
+   * Latest firstMaxAt across assignments; the moment the student last reached their personal best on every submitted assignment.
+   * @type {string}
+   * @memberof GradebookRow
+   */
+  completedAllMaxAt: string | null;
 }
 /**
  * * `hourly` - hourly

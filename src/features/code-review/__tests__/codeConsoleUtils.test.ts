@@ -284,7 +284,7 @@ describe('pointsFromTests', () => {
 
   it('returns 0 when testCase not found', () => {
     const tests = [makeSubTest({ id: 1, testCase: 999, passed: true })];
-    expect(pointsFromTests(tests, [])).toBe(-0);
+    expect(pointsFromTests(tests, [])).toBe(0);
   });
 
   it('uses score/maxScore when available (partial credit)', () => {
@@ -316,7 +316,7 @@ describe('pointsFromTests', () => {
   });
 
   it('handles empty arrays', () => {
-    expect(pointsFromTests([], [])).toBe(-0);
+    expect(pointsFromTests([], [])).toBe(0);
   });
 
   it('uses latest test per test case', () => {

@@ -20,6 +20,14 @@ import { LOCAL_SETTINGS } from '../../components/utils/LocalSettings';
 /* Comment State Management
 /**********************************************************************************************************************/
 
+/**
+ * Round a points value to cents, killing binary-float accumulation noise
+ * (e.g. a sum that lands on 9.999999999 or 10.000000001 becomes 10). Grades are
+ * never expressed finer than cents, so this changes no real value — it only
+ * removes the floating-point artifact before the number is displayed or summed.
+ */
+export const roundPoints = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
+
 export const addCommentToState = (comments: IFileToCommentsMap, comment: CommentType, file: FileWithId) => {
   const fileComments = Immutable.arrayAdd(comments[file.id], comment);
   return { ...comments, [file.id]: fileComments.sort(CommentIO.compare) };
@@ -253,7 +261,7 @@ export const pointsPerCategoryWithCaps = (
  */
 export const pointsFromTests = (submissionTests: SubmissionTestType[], testCases: TestCaseType[]): number => {
   const latestTests: SubmissionTestType[] = getLatestSubmissionTests(submissionTests) ?? [];
-  return (
+  const summed =
     -1 *
     latestTests
       .map((test) => {
@@ -277,8 +285,11 @@ export const pointsFromTests = (submissionTests: SubmissionTestType[], testCases
 
         return test.passed ? (match.pointsPass ?? 0) : (match.pointsFail ?? 0);
       })
-      .reduce((sum, value) => sum + value, 0)
-  );
+      .reduce((sum, value) => sum + value, 0);
+  // Per-test points are often non-representable fractions (e.g. maxPoints/112),
+  // so summing them accumulates binary-float noise (10 shows as 9.99999…97).
+  // Round to cents to recover the intended value without altering real grades.
+  return roundPoints(summed);
 };
 
 /**

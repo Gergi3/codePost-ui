@@ -1,6 +1,7 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
 import * as React from 'react';
-import { Alert, Card, Empty, Flex, Input, Progress, Select, Spin, Table, Tag, Tooltip, Typography } from 'antd';
+import { Link, useLocation } from 'react-router';
+import { Alert, Card, Checkbox, Empty, Flex, Input, Progress, Select, Spin, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { DownloadOutlined, ReloadOutlined } from '@ant-design/icons';
 import CPButton from '../../core/CPButton';
@@ -8,9 +9,11 @@ import { Course, GradebookAssignmentCell, GradebookQuizCell, GradebookResponse, 
 import ExportModal from './ExportModal';
 import {
   IGradebookRow,
+  RankMetric,
   assignmentAverage,
   buildRows,
   classAveragePercent,
+  computeRanks,
   percentColor,
   quizAveragePercent,
   sectionOptions,
@@ -25,10 +28,38 @@ const Muted: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <Text type="secondary">{children}</Text>
 );
 
-const renderAssignmentCell = (cell?: GradebookAssignmentCell) => {
-  if (cell?.grade != null) return Number(cell.grade);
-  if (cell?.hasSubmission && !cell.isFinalized) return <Tag color="orange">Pending</Tag>;
-  return <Muted>—</Muted>;
+const formatFirstMaxAt = (iso: string): string => {
+  const d = new Date(iso);
+  return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+};
+
+const renderAssignmentCell = (cell?: GradebookAssignmentCell, showTimes?: boolean) => {
+  // Show personal best (highest snapshot grade); fall back to current grade when no snapshots exist.
+  const best = cell?.personalBest != null
+    ? Number(cell.personalBest)
+    : cell?.grade != null ? Number(cell.grade) : null;
+  const hasLink = cell?.submissionId != null;
+  const hasTime = showTimes && cell?.firstMaxAt != null;
+  if (best == null && !hasTime) return <Muted>—</Muted>;
+  return (
+    <Flex vertical align="flex-end" gap={0}>
+      {best != null && (
+        hasLink ? (
+          <a href={`/code/${cell!.submissionId}`} target="_blank" rel="noopener noreferrer">
+            {best}
+          </a>
+        ) : (
+          <span>{best}</span>
+        )
+      )}
+      {hasTime && (
+        <Muted>
+          <span style={{ fontSize: 11 }}>{formatFirstMaxAt(cell!.firstMaxAt!)}</span>
+        </Muted>
+      )}
+      {best == null && <Muted>—</Muted>}
+    </Flex>
+  );
 };
 
 const renderQuizCell = (cell?: GradebookQuizCell) => {
@@ -53,7 +84,8 @@ const renderPercent = (percent: number | null) => {
 
 // Sort helpers: ungraded rows always sort below graded ones.
 const gradeOf = (row: IGradebookRow, assignmentId: number) => {
-  const g = row.byAssignment[assignmentId]?.grade;
+  const c = row.byAssignment[assignmentId];
+  const g = c?.personalBest ?? c?.grade;
   return g == null ? -1 : Number(g);
 };
 const quizRatioOf = (row: IGradebookRow, quizId: number) => {
@@ -64,11 +96,25 @@ const quizRatioOf = (row: IGradebookRow, quizId: number) => {
 
 interface ITableProps {
   data: GradebookResponse;
+  /** Full assignment set (id + name) for the picker — stays complete even when `data` is
+   *  filtered to a subset. Omitted in tests that don't exercise filtering. */
+  assignmentOptions?: { id: number; name: string }[];
+  /** Currently selected assignment ids ([] = all). Controlled by the fetch wrapper. */
+  selectedAssignmentIds?: number[];
+  onSelectedAssignmentsChange?: (ids: number[]) => void;
+  /** True while a filter refetch is in flight, to disable the picker momentarily. */
+  isRefetching?: boolean;
 }
 
 /** The gradebook grid itself (presentational — takes the fetched response). Exported for
  *  tests; the default export wraps it with fetching, error handling, and the export button. */
-export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
+export const GradebookTable: React.FC<ITableProps> = ({
+  data,
+  assignmentOptions,
+  selectedAssignmentIds,
+  onSelectedAssignmentsChange,
+  isRefetching,
+}) => {
   const [search, setSearch] = React.useState('');
   // Debounced: each keystroke re-filters all rows and recomputes the summary
   // averages. The input is uncontrolled, so typing itself stays instant.
@@ -93,7 +139,12 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
     [],
   );
   const [section, setSection] = React.useState<string | undefined>(undefined);
+  const [rankMetric, setRankMetric] = React.useState<RankMetric>('total');
+  const [showTimes, setShowTimes] = React.useState(false);
   const [pageSize, setPageSize] = useDefaultPageSize();
+  const location = useLocation();
+  // Derive the base admin URL from the current pathname (".../leaderboard" → ".../")
+  const historyBase = location.pathname.replace(/\/leaderboard\/?$/, '/leaderboard/history');
 
   const rows = React.useMemo(() => buildRows(data), [data]);
   const sections = React.useMemo(() => sectionOptions(rows), [rows]);
@@ -104,8 +155,22 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
     );
   }, [rows, search, section]);
 
+  // Rank is derived from the chosen metric over the FILTERED cohort (so searching or filtering
+  // to a section re-ranks within it, consistent with how the summary averages work). It is NOT
+  // read from the table's display order, so clicking a column header to sort never changes ranks.
+  const ranks = React.useMemo(() => computeRanks(filtered, rankMetric), [filtered, rankMetric]);
+
   const columns: ColumnsType<IGradebookRow> = React.useMemo(
     () => [
+      {
+        title: 'Rank',
+        key: 'rank',
+        fixed: 'left',
+        width: 70,
+        align: 'center',
+        // No sorter: rank comes from the metric (via computeRanks), not the table's sort state.
+        render: (_, row) => ranks.get(row.student) ?? <Muted>—</Muted>,
+      },
       {
         title: 'Student',
         dataIndex: 'student',
@@ -113,6 +178,9 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
         fixed: 'left',
         width: 230,
         sorter: (a, b) => a.student.localeCompare(b.student),
+        render: (email: string) => (
+          <Link to={`${historyBase}?student=${encodeURIComponent(email)}`}>{email}</Link>
+        ),
       },
       {
         title: 'Section',
@@ -135,7 +203,7 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
                 width: 130,
                 align: 'right' as const,
                 sorter: (x: IGradebookRow, y: IGradebookRow) => gradeOf(x, a.id) - gradeOf(y, a.id),
-                render: (_: unknown, row: IGradebookRow) => renderAssignmentCell(row.byAssignment[a.id]),
+                render: (_: unknown, row: IGradebookRow) => renderAssignmentCell(row.byAssignment[a.id], showTimes),
               })),
             },
           ]
@@ -159,24 +227,29 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
         title: 'Overall',
         children: [
           {
-            title: 'Total',
+            title: 'Best total',
             key: 'total',
-            width: 110,
+            width: 130,
             align: 'right' as const,
-            sorter: (a: IGradebookRow, b: IGradebookRow) => a.totalEarned - b.totalEarned,
-            render: (_: unknown, row: IGradebookRow) => `${Number(row.totalEarned)} / ${Number(row.totalPossible)}`,
+            defaultSortOrder: 'descend' as const,
+            sorter: (a: IGradebookRow, b: IGradebookRow) => a.personalBestEarned - b.personalBestEarned,
+            render: (_: unknown, row: IGradebookRow) =>
+              row.personalBestPercent == null
+                ? <Muted>—</Muted>
+                : `${row.personalBestEarned} / ${row.personalBestPossible}`,
           },
           {
-            title: 'Percent',
+            title: 'Best %',
             key: 'percent',
             width: 150,
-            sorter: (a: IGradebookRow, b: IGradebookRow) => (a.percent ?? -1) - (b.percent ?? -1),
-            render: (_: unknown, row: IGradebookRow) => renderPercent(row.percent),
+            sorter: (a: IGradebookRow, b: IGradebookRow) =>
+              (a.personalBestPercent ?? -1) - (b.personalBestPercent ?? -1),
+            render: (_: unknown, row: IGradebookRow) => renderPercent(row.personalBestPercent),
           },
         ],
       },
     ],
-    [data],
+    [data, ranks, showTimes],
   );
 
   // Class averages over the FILTERED rows, so filtering to a section shows that
@@ -185,14 +258,16 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
   // all filtered rows once per column — O(students × columns).
   const summaryNode = React.useMemo(() => {
     const classAvg = classAveragePercent(filtered);
-    let index = 2;
+    // Leading cells: Rank (0), Student (1), Section (2); averages start at 3.
+    let index = 3;
     return (
       <Table.Summary fixed>
         <Table.Summary.Row>
-          <Table.Summary.Cell index={0}>
+          <Table.Summary.Cell index={0} />
+          <Table.Summary.Cell index={1}>
             <Text strong>Average{section ? ` (${section})` : ''}</Text>
           </Table.Summary.Cell>
-          <Table.Summary.Cell index={1} />
+          <Table.Summary.Cell index={2} />
           {data.assignments.map((a) => {
             const avg = assignmentAverage(filtered, a.id);
             return (
@@ -245,12 +320,48 @@ export const GradebookTable: React.FC<ITableProps> = ({ data }) => {
             options={sections.map((s) => ({ value: s, label: s }))}
           />
         )}
+        {assignmentOptions && assignmentOptions.length > 0 && onSelectedAssignmentsChange && (
+          <Select
+            mode="multiple"
+            allowClear
+            placeholder="All assignments"
+            aria-label="Rank over assignments"
+            style={{ minWidth: 240, maxWidth: 420 }}
+            value={selectedAssignmentIds}
+            onChange={onSelectedAssignmentsChange}
+            loading={isRefetching}
+            maxTagCount="responsive"
+            optionFilterProp="label"
+            options={assignmentOptions.map((a) => ({ value: a.id, label: a.name }))}
+          />
+        )}
+        <Select
+          aria-label="Rank by"
+          style={{ width: 150 }}
+          value={rankMetric}
+          onChange={setRankMetric}
+          options={[
+            { value: 'total', label: 'Rank by total' },
+            { value: 'percent', label: 'Rank by percent' },
+          ]}
+        />
+        <Checkbox
+          checked={showTimes}
+          onChange={(e) => setShowTimes(e.target.checked)}
+        >
+          Show submission times
+        </Checkbox>
       </Flex>
       <Table<IGradebookRow>
         dataSource={filtered}
         columns={columns}
         rowKey="student"
         size="small"
+        rowClassName={(row) => {
+          // Medal tint for the podium (rank is the metric-derived rank, not display order).
+          const rank = ranks.get(row.student);
+          return rank === 1 ? 'lb-rank-gold' : rank === 2 ? 'lb-rank-silver' : rank === 3 ? 'lb-rank-bronze' : '';
+        }}
         pagination={{
           pageSize,
           showSizeChanger: true,
@@ -271,11 +382,26 @@ interface IProps {
   course: Course;
 }
 
-/** Course gradebook: every active student × every assignment and quiz, with totals over
- *  graded work. Course admins only (the server 403s everyone else). */
+/** Course leaderboard: every active student ranked by score across the selected assignments
+ *  (and quizzes), with per-assignment points. Course admins only (the server 403s everyone
+ *  else). Grades show regardless of finalization — this is the admin view. */
 const Gradebook: React.FC<IProps> = ({ course }) => {
-  const { data, isLoading, isError, error, refetch, isRefetching } = useGradebook(course.id);
+  // [] = all assignments. Drives the server-side filter (totals/percent/rank recompute).
+  const [selectedAssignmentIds, setSelectedAssignmentIds] = React.useState<number[]>([]);
+  const { data, isLoading, isError, error, refetch, isRefetching } = useGradebook(
+    course.id,
+    selectedAssignmentIds,
+  );
   const [exportOpen, setExportOpen] = React.useState(false);
+
+  // Picker options must list ALL assignments, but `data.assignments` shrinks to the selected
+  // subset once a filter is applied. Snapshot the full set from the first unfiltered response.
+  const [allAssignments, setAllAssignments] = React.useState<{ id: number; name: string }[]>([]);
+  React.useEffect(() => {
+    if (data && selectedAssignmentIds.length === 0) {
+      setAllAssignments(data.assignments.map((a) => ({ id: a.id, name: a.name })));
+    }
+  }, [data, selectedAssignmentIds.length]);
 
   const forbidden = error instanceof ResponseError && error.response?.status === 403;
 
@@ -292,17 +418,17 @@ const Gradebook: React.FC<IProps> = ({ course }) => {
       title={
         <Flex vertical gap={2}>
           <Title level={2} style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-            Gradebook
+            Leaderboard
           </Title>
           <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
-            {stats ?? 'Finalized assignment grades and official quiz scores.'}
+            {stats ?? 'Students ranked by score across assignments and quizzes.'}
           </Text>
         </Flex>
       }
       extra={
         <Flex gap={8}>
           <Tooltip title="Reload the latest grades">
-            <CPButton icon={<ReloadOutlined />} loading={isRefetching} onClick={() => refetch()} aria-label="Reload gradebook" />
+            <CPButton icon={<ReloadOutlined />} loading={isRefetching} onClick={() => refetch()} aria-label="Reload leaderboard" />
           </Tooltip>
           <Tooltip title="Choose columns and download a spreadsheet-ready CSV">
             <CPButton icon={<DownloadOutlined />} onClick={() => setExportOpen(true)} disabled={!data}>
@@ -321,14 +447,14 @@ const Gradebook: React.FC<IProps> = ({ course }) => {
           <Alert
             type="warning"
             showIcon
-            message="Only course admins can view the gradebook."
+            message="Only course admins can view the leaderboard."
             description="Ask a course admin for access, or use your per-assignment and per-quiz grading views."
           />
         ) : (
           <Alert
             type="error"
             showIcon
-            message="The gradebook could not be loaded."
+            message="The leaderboard could not be loaded."
             action={
               <CPButton size="small" onClick={() => refetch()}>
                 Try again
@@ -337,9 +463,22 @@ const Gradebook: React.FC<IProps> = ({ course }) => {
           />
         )
       ) : data ? (
-        <GradebookTable data={data} />
+        <GradebookTable
+          data={data}
+          assignmentOptions={allAssignments}
+          selectedAssignmentIds={selectedAssignmentIds}
+          onSelectedAssignmentsChange={setSelectedAssignmentIds}
+          isRefetching={isRefetching}
+        />
       ) : null}
-      {data && <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} course={course} data={data} />}
+      {data && (
+        <ExportModal
+          open={exportOpen}
+          onClose={() => setExportOpen(false)}
+          course={course}
+          data={data}
+        />
+      )}
     </Card>
   );
 };

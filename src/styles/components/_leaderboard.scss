@@ -1,0 +1,48 @@
+/* Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software. */
+
+/* Medal backgrounds for the top three leaderboard rows. Light, matching tints; the row's
+   cells carry the colour (antd paints td backgrounds, so the tr alone would be hidden).
+   Hover deepens the same hue slightly rather than falling back to the default grey. */
+.lb-rank-gold > td {
+  background-color: #fbf3d5 !important;
+}
+.lb-rank-gold:hover > td {
+  background-color: #f6e9b8 !important;
+}
+
+.lb-rank-silver > td {
+  background-color: #eef1f4 !important;
+}
+.lb-rank-silver:hover > td {
+  background-color: #e2e7ec !important;
+}
+
+.lb-rank-bronze > td {
+  background-color: #f6e8dc !important;
+}
+.lb-rank-bronze:hover > td {
+  background-color: #efdcc9 !important;
+}
+
+[data-theme='dark'] {
+  .lb-rank-gold > td {
+    background-color: #403714 !important;
+  }
+  .lb-rank-gold:hover > td {
+    background-color: #4d4319 !important;
+  }
+
+  .lb-rank-silver > td {
+    background-color: #2f3337 !important;
+  }
+  .lb-rank-silver:hover > td {
+    background-color: #393e43 !important;
+  }
+
+  .lb-rank-bronze > td {
+    background-color: #3a2c20 !important;
+  }
+  .lb-rank-bronze:hover > td {
+    background-color: #463528 !important;
+  }
+}

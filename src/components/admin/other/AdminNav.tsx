@@ -11,7 +11,6 @@ import {
   InboxOutlined,
   PushpinOutlined,
   SettingOutlined,
-  TableOutlined,
   TeamOutlined,
   TrophyOutlined,
 } from '@ant-design/icons';
@@ -90,7 +89,7 @@ const AdminNav: React.FC<IAdminNavProps> = (props) => {
     if (/\/quizzes\/grading-progress(?:\/|$)/.test(pathname)) return 'quizzes/grading-progress';
     if (/\/quizzes(?:\/|$)/.test(pathname)) return 'quizzes/overview';
 
-    if (/\/gradebook(?:\/|$)/.test(pathname)) return 'gradebook';
+    if (/\/(leaderboard|gradebook)(?:\/|$)/.test(pathname)) return 'leaderboard';
 
     if (/\/activity-log(?:\/|$)/.test(pathname)) return 'activity-log';
 
@@ -166,9 +165,9 @@ const AdminNav: React.FC<IAdminNavProps> = (props) => {
         ...(canViewGradebook
           ? [
               {
-                key: 'gradebook',
-                icon: <TableOutlined />,
-                label: <Link to={`${courseBaseURL}/gradebook`}>Gradebook</Link>,
+                key: 'leaderboard',
+                icon: <TrophyOutlined />,
+                label: <Link to={`${courseBaseURL}/leaderboard`}>Leaderboard</Link>,
               },
             ]
           : []),

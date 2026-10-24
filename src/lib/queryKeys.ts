@@ -4,7 +4,14 @@ export const courseKeys = {
   all: ['courses'] as const,
   roster: (courseId: number) => ['courses', courseId, 'roster'] as const,
   sections: (courseId: number) => ['courses', courseId, 'sections'] as const,
-  gradebook: (courseId: number) => ['courses', courseId, 'gradebook'] as const,
+  // Optional assignmentIds narrow the leaderboard to a subset of assignments; a stable
+  // sorted join keeps [1,2] and [2,1] on the same key. Omitted → the all-assignments key.
+  gradebook: (courseId: number, assignmentIds?: number[]) =>
+    assignmentIds && assignmentIds.length > 0
+      ? (['courses', courseId, 'gradebook', [...assignmentIds].sort((a, b) => a - b).join(',')] as const)
+      : (['courses', courseId, 'gradebook'] as const),
+  studentGradeHistory: (courseId: number, student: string) =>
+    ['courses', courseId, 'studentGradeHistory', student] as const,
   files: (courseId: number) => ['courses', courseId, 'files'] as const,
 };
 

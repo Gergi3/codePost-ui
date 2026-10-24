@@ -1658,7 +1658,7 @@ example().catch(console.error);
 
 > string gradebookExportRetrieve(id, assignments, quizzes, section)
 
-Export the course gradebook as CSV (course admins only). Same data as the gradebook endpoint: one row per active student, blank cells for pending/missing. Totals are computed over the included columns only.
+Export the course gradebook as CSV (course admins only). Same data as the gradebook endpoint: one row per active student, blank cells for missing/ungraded work. Totals are computed over the included columns only.
 
 ### Example
 
@@ -1736,9 +1736,9 @@ example().catch(console.error);
 
 ## gradebookRetrieve
 
-> GradebookResponse gradebookRetrieve(id)
+> GradebookResponse gradebookRetrieve(id, assignments)
 
-The course gradebook: every active student × every assignment and quiz, with totals over graded work (course admins only).
+The course gradebook: every active student × every assignment and quiz, with totals over graded work (course admins only). &#x60;&#x60;?assignments&#x3D;&#x60;&#x60; restricts the assignment columns and recomputes totals over the selected assignments.
 
 ### Example
 
@@ -1764,6 +1764,8 @@ async function example() {
   const body = {
     // number | A unique integer value identifying this course.
     id: 56,
+    // string | Comma-separated assignment ids to include; omit for all. (optional)
+    assignments: assignments_example,
   } satisfies GradebookRetrieveRequest;
 
   try {
@@ -1780,9 +1782,10 @@ example().catch(console.error);
 
 ### Parameters
 
-| Name   | Type     | Description                                     | Notes                     |
-| ------ | -------- | ----------------------------------------------- | ------------------------- |
-| **id** | `number` | A unique integer value identifying this course. | [Defaults to `undefined`] |
+| Name            | Type     | Description                                              | Notes                                |
+| --------------- | -------- | -------------------------------------------------------- | ------------------------------------ |
+| **id**          | `number` | A unique integer value identifying this course.          | [Defaults to `undefined`]            |
+| **assignments** | `string` | Comma-separated assignment ids to include; omit for all. | [Optional] [Defaults to `undefined`] |
 
 ### Return type
 

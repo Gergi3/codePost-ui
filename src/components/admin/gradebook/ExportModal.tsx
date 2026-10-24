@@ -79,7 +79,7 @@ const ExportModal: React.FC<IProps> = ({ open, onClose, course, data }) => {
       });
       onClose();
     } catch {
-      message.error('Failed to export the gradebook.');
+      message.error('Failed to export the leaderboard.');
     } finally {
       setExporting(false);
     }
@@ -87,7 +87,7 @@ const ExportModal: React.FC<IProps> = ({ open, onClose, course, data }) => {
 
   return (
     <Modal
-      title="Export gradebook CSV"
+      title="Export leaderboard CSV"
       open={open}
       onCancel={onClose}
       okText="Export"

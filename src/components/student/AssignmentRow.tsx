@@ -5,7 +5,6 @@ import {
   CheckCircleFilled,
   DownOutlined,
   UploadOutlined,
-  PlusOutlined,
   EyeOutlined,
   DownloadOutlined,
   CalendarOutlined,
@@ -39,14 +38,11 @@ interface AssignmentRowProps {
   hasExistingSubmission?: boolean;
   hasDownload?: boolean;
   liveFeedbackMode?: boolean;
-  isFinalized?: boolean;
-  isUrgent?: boolean;
   hideGrades?: boolean;
   hideDueDate?: boolean;
   onViewFeedback?: (e: React.MouseEvent) => void;
   onViewFiles?: (e: React.MouseEvent) => void;
   onUpload?: () => void;
-  onAddFiles?: () => void;
   onDownload?: () => void;
   disabled?: boolean;
   quizzes?: StudentQuiz[];
@@ -108,13 +104,11 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
   hasExistingSubmission = false,
   hasDownload = false,
   liveFeedbackMode = false,
-  isFinalized = false,
   hideGrades = false,
   hideDueDate = false,
   onViewFeedback,
   onViewFiles,
   onUpload,
-  onAddFiles,
   onDownload,
   disabled = false,
   quizzes = [],
@@ -123,7 +117,6 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
   const hasGrade = grade !== null && grade !== undefined && maxPoints !== undefined && maxPoints !== null;
-  const showAddFiles = liveFeedbackMode && hasExistingSubmission && !isFinalized;
 
   // Corner indicator: green check when fully done, red dot while action is still possible.
   const actionInput = { status, hasSubmission: hasExistingSubmission, allowStudentUpload, quizzes };
@@ -260,21 +253,6 @@ const AssignmentRow: React.FC<AssignmentRowProps> = ({
             onUpload();
           }}
           aria-label={`Upload ${assignmentName}`}
-        />
-      </Tooltip>,
-    );
-  }
-  if (showAddFiles && onAddFiles) {
-    secondaryButtons.push(
-      <Tooltip key="addfiles" title="Add or update files">
-        <Button
-          size="small"
-          icon={<PlusOutlined />}
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddFiles();
-          }}
-          aria-label={`Add files to ${assignmentName}`}
         />
       </Tooltip>,
     );

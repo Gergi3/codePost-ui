@@ -12,6 +12,7 @@ const ActivityLog = lazy(() => import('./activity-log/ActivityLog'));
 const QuizzesManager = lazy(() => import('./quizzes/QuizzesManager'));
 const QuizGradingProgress = lazy(() => import('./quizzes/QuizGradingProgress'));
 const Gradebook = lazy(() => import('./gradebook/Gradebook'));
+const StudentGradeHistory = lazy(() => import('./gradebook/StudentGradeHistory'));
 const CourseFilesManager = lazy(() => import('./courseFiles/CourseFilesManager'));
 import ErrorBoundary from '../core/ErrorBoundary';
 
@@ -204,7 +205,10 @@ const AdminRoutes: React.FC<AdminRoutesProps> = (props) => {
           }
         />
         <Route path="quizzes/*" element={<QuizzesManager course={props.course} />} />
-        <Route path="gradebook" element={<Gradebook course={props.course} />} />
+        <Route path="leaderboard" element={<Gradebook course={props.course} />} />
+        <Route path="leaderboard/history" element={<StudentGradeHistory course={props.course} courseURL={props.courseURL} />} />
+        {/* Old path kept so existing bookmarks/links don't 404. */}
+        <Route path="gradebook" element={<Navigate to="../leaderboard" replace />} />
         <Route path="course-files" element={<CourseFilesManager course={props.course} />} />
         <Route path="settings/webhooks" element={<WebhooksPanel currentCourse={props.course} />} />
         <Route

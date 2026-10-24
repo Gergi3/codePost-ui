@@ -30,9 +30,8 @@ import {
   message,
   Modal,
   Result,
-  Select,
+    Select,
   Spin,
-  Switch,
   Table,
   Tabs,
   Tag,
@@ -189,7 +188,7 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [status, setStatus] = useState<STATUS>(STATUS.NONE);
   const [rejectedFiles, setRejectedFiles] = useState<string[]>([]);
-  const [uploadDirectory, setUploadDirectory] = useState<boolean>(false);
+  const uploadDirectory = true;
   const [testCategories, setTestCategories] = useState<TestCategoryType[]>([]);
   const [submission, setSubmission] = useState<StudentSubmissionType | SubmissionInfoType | undefined>(undefined);
   const [loadingTests, setLoadingTests] = useState<boolean>(false);
@@ -523,14 +522,6 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
     }
   }, [onSuccess, onCancel, submission]);
 
-  const toggleDirectoryUpload = useCallback(() => {
-    setStatus(STATUS.NONE);
-    setFiles([]);
-    setFileList([]);
-    setRejectedFiles([]);
-    setUploadDirectory((prev) => !prev);
-  }, []);
-
   const handleRemove = useCallback((file: UploadFile) => {
     const protoFileUpload = fileToProtoFileUpload(file);
 
@@ -849,26 +840,8 @@ const UploadSubmissionDialog: React.FC<IUploadSubmissionDialogProps> = (props) =
   }, [rejectedFiles]);
 
   const renderSettings = useMemo(() => {
-    const settings = [
-      {
-        setting: 'Upload a directory',
-        tooltip: 'Turn this on to upload nested folders.',
-        checked: uploadDirectory,
-        onChange: toggleDirectoryUpload,
-      },
-    ];
-
-    return (
-      <span>
-        {settings.map((setting) => (
-          <span key={setting.setting}>
-            {setting.setting} <CPTooltip title={setting.tooltip} infoIcon={true} /> &nbsp;{' '}
-            <Switch checked={setting.checked} onClick={setting.onChange} />
-          </span>
-        ))}
-      </span>
-    );
-  }, [uploadDirectory, toggleDirectoryUpload]);
+    return null;
+  }, []);
 
   const renderRequiredFiles = useMemo(() => {
     const assignmentFiles = selectedAssignment?.files;

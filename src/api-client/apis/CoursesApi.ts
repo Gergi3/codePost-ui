@@ -197,6 +197,7 @@ export interface GradebookExportRetrieveRequest {
 
 export interface GradebookRetrieveRequest {
   id: number;
+  assignments?: string;
 }
 
 export interface PartialUpdateRequest {
@@ -1694,7 +1695,7 @@ export class CoursesApi extends runtime.BaseAPI {
   }
 
   /**
-   * Export the course gradebook as CSV (course admins only). Same data as the gradebook endpoint: one row per active student, blank cells for pending/missing. Totals are computed over the included columns only.
+   * Export the course gradebook as CSV (course admins only). Same data as the gradebook endpoint: one row per active student, blank cells for missing/ungraded work. Totals are computed over the included columns only.
    */
   async gradebookExportRetrieveRaw(
     requestParameters: GradebookExportRetrieveRequest,
@@ -1759,7 +1760,7 @@ export class CoursesApi extends runtime.BaseAPI {
   }
 
   /**
-   * Export the course gradebook as CSV (course admins only). Same data as the gradebook endpoint: one row per active student, blank cells for pending/missing. Totals are computed over the included columns only.
+   * Export the course gradebook as CSV (course admins only). Same data as the gradebook endpoint: one row per active student, blank cells for missing/ungraded work. Totals are computed over the included columns only.
    */
   async gradebookExportRetrieve(
     requestParameters: GradebookExportRetrieveRequest,
@@ -1770,7 +1771,7 @@ export class CoursesApi extends runtime.BaseAPI {
   }
 
   /**
-   * The course gradebook: every active student × every assignment and quiz, with totals over graded work (course admins only).
+   * The course gradebook: every active student × every assignment and quiz, with totals over graded work (course admins only). ``?assignments=`` restricts the assignment columns and recomputes totals over the selected assignments.
    */
   async gradebookRetrieveRaw(
     requestParameters: GradebookRetrieveRequest,
@@ -1784,6 +1785,10 @@ export class CoursesApi extends runtime.BaseAPI {
     }
 
     const queryParameters: any = {};
+
+    if (requestParameters['assignments'] != null) {
+      queryParameters['assignments'] = requestParameters['assignments'];
+    }
 
     const headerParameters: runtime.HTTPHeaders = {};
 
@@ -1819,7 +1824,7 @@ export class CoursesApi extends runtime.BaseAPI {
   }
 
   /**
-   * The course gradebook: every active student × every assignment and quiz, with totals over graded work (course admins only).
+   * The course gradebook: every active student × every assignment and quiz, with totals over graded work (course admins only). ``?assignments=`` restricts the assignment columns and recomputes totals over the selected assignments.
    */
   async gradebookRetrieve(
     requestParameters: GradebookRetrieveRequest,

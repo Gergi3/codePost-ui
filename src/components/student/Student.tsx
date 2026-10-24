@@ -92,7 +92,6 @@ interface IStudentProps {
 enum CURRENT_PANEL {
   TABLE,
   UPLOADFILES,
-  ADDFILES,
 }
 
 // Constants
@@ -460,7 +459,6 @@ const StudentComponent: React.FC<StudentProps> = (props) => {
           hasExistingSubmission={submission !== undefined}
           hasDownload={assignment.files && assignment.files.length > 0}
           liveFeedbackMode={assignment.liveFeedbackMode}
-          isFinalized={submission?.isFinalized ?? false}
           hideGrades={assignment.hideGrades}
           hideDueDate={currentCourse?.id === CODE_IN_PLACE_COURSE_ID}
           disabled={isDisabled}
@@ -493,12 +491,7 @@ const StudentComponent: React.FC<StudentProps> = (props) => {
                       content: (
                         <div>
                           <p>
-                            If you replace your files, it will delete existing files and file versions, including any
-                            comments on those files.
-                          </p>
-                          <p>
-                            If you want to add a file to your submission or update a file click &apos;Add/Update
-                            files&apos; instead.
+                            This will delete your existing files and any comments on them.
                           </p>
                           <p>
                             <b>Are you sure you want to continue?</b>
@@ -513,11 +506,6 @@ const StudentComponent: React.FC<StudentProps> = (props) => {
                     changePanel(CURRENT_PANEL.UPLOADFILES, assignment, submission);
                   }
                 }
-              : undefined
-          }
-          onAddFiles={
-            assignment.liveFeedbackMode && submission && !submission.isFinalized
-              ? () => changePanel(CURRENT_PANEL.ADDFILES, assignment, submission)
               : undefined
           }
           onDownload={
@@ -751,7 +739,7 @@ const StudentComponent: React.FC<StudentProps> = (props) => {
 
         {/* Upload Dialog */}
         <UploadSubmissionDialog
-          isVisible={currentPanel === CURRENT_PANEL.UPLOADFILES || currentPanel === CURRENT_PANEL.ADDFILES}
+          isVisible={currentPanel === CURRENT_PANEL.UPLOADFILES}
           onCancel={() => changePanel(CURRENT_PANEL.TABLE, detailAssignment, undefined)}
           assignments={assignmentList}
           selectedAssignment={detailAssignment}
@@ -773,7 +761,7 @@ const StudentComponent: React.FC<StudentProps> = (props) => {
             sendConfirmationEmail?: boolean,
           ) =>
             uploadSubmission(
-              currentPanel !== CURRENT_PANEL.ADDFILES,
+              true,
               assignment,
               partners,
               files.map((file) => ({

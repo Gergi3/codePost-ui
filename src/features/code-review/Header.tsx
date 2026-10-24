@@ -60,6 +60,7 @@ import {
   pointsFromTests,
   pointsPerCategory,
   pointsPerCategoryWithCaps,
+  roundPoints,
 } from './codeConsoleUtils';
 
 import { createFakeSubmission } from '../../components/utils/FakeSubmissionUtils';
@@ -607,9 +608,10 @@ export const GradeBreakdown = (props: IGradeBreakdownProps) => {
     });
   }
 
-  const finalGrade =
-    (props.assignment.additiveGrading ? 0 : props.assignment.points) - categoryPoints - genericPoints - testPoints;
-  const totalDeductions = categoryPoints + genericPoints + testPoints;
+  const finalGrade = roundPoints(
+    (props.assignment.additiveGrading ? 0 : props.assignment.points) - categoryPoints - genericPoints - testPoints,
+  );
+  const totalDeductions = roundPoints(categoryPoints + genericPoints + testPoints);
 
   const columns = [
     {
@@ -632,7 +634,8 @@ export const GradeBreakdown = (props: IGradeBreakdownProps) => {
       dataIndex: 'points',
       key: 'points',
       align: 'right' as const,
-      render: (points: number) => {
+      render: (rawPoints: number) => {
+        const points = roundPoints(rawPoints);
         if (points > 0) {
           return <span style={{ color: '#ff4d4f', fontWeight: 600 }}>-{points}</span>;
         } else if (points < 0) {
