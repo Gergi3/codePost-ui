@@ -16021,6 +16021,7 @@ export enum TypeEnum {
   File = 'file',
   External = 'external',
   Script = 'script',
+  Checkstyle = 'checkstyle',
 }
 
 /**

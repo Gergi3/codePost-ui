@@ -1,7 +1,7 @@
 // Copyright © 2026 Rutgers, the State University of New Jersey. All rights reserved except as defined by the Rutgers Non-Commercial License, included with this software.
 import { useState, useEffect } from 'react';
 import { Modal, Steps, Button, Radio, Card, Select, message, Alert } from 'antd';
-import { RobotOutlined, CodeOutlined, FileTextOutlined } from '@ant-design/icons';
+import { RobotOutlined, CodeOutlined, FileTextOutlined, CheckSquareOutlined } from '@ant-design/icons';
 import { assignmentsApi } from '../../../../../../api-client/clients';
 import { AssignmentFileType } from '../../../../../../types/models';
 import { getCourseAISettings } from '../../../../../../utils/aiService';
@@ -27,7 +27,7 @@ interface IProps {
 export const TestCreateModal = (props: IProps) => {
   const [currentStep, setCurrentStep] = useState(props.initialFileName ? 1 : 0);
   const [fileName, setFileName] = useState(props.initialFileName || '');
-  const [creationMethod, setCreationMethod] = useState<'manual' | 'template' | 'ai'>('manual');
+  const [creationMethod, setCreationMethod] = useState<'manual' | 'template' | 'ai' | 'checkstyle'>('manual');
   const [aiEnabled, setAiEnabled] = useState(false);
   const [selectedContextFile, setSelectedContextFile] = useState<number | undefined>(undefined);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -119,6 +119,17 @@ export const TestCreateModal = (props: IProps) => {
   };
 
   const handleFinish = async () => {
+    if (creationMethod === 'checkstyle') {
+      props.onCreate({
+        fileName,
+        testCode: '',
+        type: 'checkstyle',
+        rubricItem: selectedRubricItem,
+      });
+      reset();
+      return;
+    }
+
     let code = '';
 
     if (creationMethod === 'manual') {
@@ -252,6 +263,22 @@ export const TestCreateModal = (props: IProps) => {
               </Radio>
             </Card>
           )}
+
+          <Card
+            hoverable
+            className={creationMethod === 'checkstyle' ? 'ant-card-bordered-primary' : ''}
+            onClick={() => setCreationMethod('checkstyle')}
+          >
+            <Radio value="checkstyle">
+              <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8 }}>
+                <CheckSquareOutlined style={{ fontSize: 20, marginRight: 10, color: '#52c41a' }} />
+                <div>
+                  <strong>Checkstyle</strong>
+                  <div style={{ color: '#666' }}>Award points for zero code style violations (MJT rules).</div>
+                </div>
+              </div>
+            </Radio>
+          </Card>
         </div>
       </Radio.Group>
 
@@ -275,6 +302,18 @@ export const TestCreateModal = (props: IProps) => {
             showIcon
             style={{ marginTop: 10 }}
             title="AI will analyze this file to generate appropriate test cases."
+          />
+        </div>
+      )}
+
+      {creationMethod === 'checkstyle' && (
+        <div style={{ marginTop: 20 }}>
+          <Alert
+            title="Checkstyle"
+            description="Runs checkstyle on all student .java files using the MJT course rules. Set the points for this test case after creation."
+            type="success"
+            showIcon
+            icon={<CheckSquareOutlined />}
           />
         </div>
       )}
